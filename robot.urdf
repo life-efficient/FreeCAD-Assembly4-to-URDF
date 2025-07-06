@@ -1,2 +1,19 @@
 <robot name="my_robot">
 
+  <joint name="world_to_Foot_V2" type="fixed">
+    <parent link="world"/>
+    <child link="Foot_V2"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+  <joint name="STS3125_to_Foot_V2" type="revolute">
+    <parent link="STS3125"/>
+    <child link="Foot_V2"/>
+    <origin xyz="0.000000 0.018000 -0.000000" rpy="0.000000 -0.000000 -1.570796"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+  <joint name="Servo_Case_to_Grid_to_STS3125" type="fixed">
+    <parent link="Servo_Case_to_Grid"/>
+    <child link="STS3125"/>
+    <origin xyz="-0.000000 0.016000 -0.000000" rpy="0.000000 -1.570796 3.141593"/>
+  </joint>
+</robot>

@@ -24,6 +24,13 @@ def format_vector(v):
 def format_rotation(rot):
     return f"{radians(rot.x):.6f} {radians(rot.y):.6f} {radians(rot.z):.6f}"
 
+def format_placement(placement):
+    if placement is None:
+        return "0 0 0", "0 0 0"
+    pos = placement.Base
+    rpy = placement.Rotation.toEuler()
+    return f"{pos.x * SCALE:.6f} {pos.y * SCALE:.6f} {pos.z * SCALE:.6f}", f"{radians(rpy[0]):.6f} {radians(rpy[1]):.6f} {radians(rpy[2]):.6f}"
+
 def export_mesh(body, name):
     mesh_path = os.path.join(EXPORT_DIR, "meshes", f"{name}.{MESH_FORMAT}")
     shape = body.Shape.copy()
@@ -119,6 +126,12 @@ def trygetattr(obj, prop):
     except:
         return "<no " + prop + ">"
 
+def get_link_name_from_reference(ref):
+    # ref is a tuple: (<Assembly object>, ['LinkName.EdgeX', ...])
+    if ref and len(ref) == 2 and len(ref[1]) > 0:
+        return ref[1][0].split('.')[0]
+    return None
+
 def main():
     print('running' + '\n'*5)
     ensure_dir(EXPORT_DIR)
@@ -131,6 +144,7 @@ def main():
         print('no assembly found')
         return
     
+    # Collect only real robot parts: App::Link to PartDesign::Body, or direct PartDesign::Body
     robot_parts = []
     for obj in collect_parts_recursive([assembly]):
         if obj.TypeId == "App::Link" and getattr(obj, "LinkedObject", None) and getattr(obj.LinkedObject, "TypeId", None) == "PartDesign::Body":
@@ -149,13 +163,22 @@ def main():
     joint_objs = joints_group.Group if joints_group else []
     print('num joints', len(joint_objs))
     for joint in joint_objs:
-        print(f'Joint: {joint.Name}, TypeId: {joint.TypeId}, type: {trygetattr(joint, "JointType")}')
-        # print('Attributes:', dir(joint))
-        # print('Properties:')
-        # for prop in joint.PropertiesList:
-        #     print(f'  {prop}: {getattr(joint, prop, None)}')
-        # print(joint.PropertiesList)
+        joint_type = getattr(joint, "JointType", "revolute").lower()
+        parent = get_link_name_from_reference(getattr(joint, "Reference1", None))
+        child = get_link_name_from_reference(getattr(joint, "Reference2", None))
+        placement1 = getattr(joint, "Placement1", None)
+        placement2 = getattr(joint, "Placement2", None)
+        print(f"Joint: {joint.Name}, type: {joint_type}, parent: {parent}, child: {child}, placement1: {placement1}, placement2: {placement2}")
+    # (existing extraction logic remains below for reference)
+    # for joint in joint_objs:
+    #     parent = getattr(joint, "Parent", None)
+    #     child = getattr(joint, "Child", None)
+    #     joint_type = getattr(joint, "JointType", "revolute")
+    #     placement = getattr(joint, "Placement", None)
+    #     axis = getattr(joint, "Axis", None)
+    #     print(f"Joint: {joint.Name}, type: {joint_type}, parent: {parent}, child: {child}, placement: {placement}, axis: {axis}")
 
+    # Write URDF links and joints (joints writing to be implemented next)
     with open(os.path.join(EXPORT_DIR, "robot.urdf"), "w") as f:
         f.write(f'<robot name="{ROBOT_NAME}">\n\n')
 
@@ -164,10 +187,30 @@ def main():
             write_link(f, part)
 
         # Write all joints
-        for lcs in lcs_objs:
-            attached = lcs.getLinkedObject(True)
-            if attached and isinstance(attached, App.Part):
-                write_joint(f, lcs, attached)
+        for joint in joint_objs:
+            joint_type = getattr(joint, "JointType", "revolute").lower()
+            parent = get_link_name_from_reference(getattr(joint, "Reference1", None))
+            child = get_link_name_from_reference(getattr(joint, "Reference2", None))
+            placement1 = getattr(joint, "Placement1", None)
+            xyz, rpy = format_placement(placement1)
+            if joint.Name == "GroundedJoint":
+                # Handle grounded joint: connect base link to world as fixed
+                base_link = getattr(joint, "ObjectToGround", None)
+                base_link_name = base_link.Name if base_link else None
+                if base_link_name:
+                    f.write(f'  <joint name="world_to_{base_link_name}" type="fixed">\n')
+                    f.write(f'    <parent link="world"/>\n')
+                    f.write(f'    <child link="{base_link_name}"/>\n')
+                    f.write(f'    <origin xyz="{xyz}" rpy="{rpy}"/>\n')
+                    f.write(f'  </joint>\n')
+            elif parent and child:
+                f.write(f'  <joint name="{parent}_to_{child}" type="{joint_type}">\n')
+                f.write(f'    <parent link="{parent}"/>\n')
+                f.write(f'    <child link="{child}"/>\n')
+                f.write(f'    <origin xyz="{xyz}" rpy="{rpy}"/>\n')
+                if joint_type == "revolute":
+                    f.write(f'    <axis xyz="0 0 1"/>\n')
+                f.write(f'  </joint>\n')
 
         f.write('</robot>\n')
 
