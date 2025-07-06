@@ -37,27 +37,35 @@ def export_mesh(body, name):
     Mesh.export([body], mesh_path)
     return f"package://{ROBOT_NAME}/meshes/{name}.{MESH_FORMAT}"
 
-def get_inertial(body):
-    # Calculate mass from volume and fixed PLA density
+def get_inertial(body, name=None):
+    # Hardcode STS3215 servo values if detected in link name
+    if name and "STS3125".lower() in name.lower():
+        mass = 0.06  # 60g
+        com = App.Vector(0, 0, 0)
+        inertia = {
+            "ixx": 1e-5,
+            "ixy": 0.0,
+            "ixz": 0.0,
+            "iyy": 1e-5,
+            "iyz": 0.0,
+            "izz": 1e-5,
+        }
+        return {"mass": mass, "com": com, "inertia": inertia}
+    # Otherwise, use PLA calculation
     volume_mm3 = body.Shape.Volume  # mm^3
     volume_m3 = volume_mm3 * 1e-9   # m^3
     mass = volume_m3 * PLA_DENSITY
     com = body.Shape.CenterOfMass
-    # Scale inertia from FreeCAD's mm^4 to m^4 and multiply by density
     props = body.Shape.MatrixOfInertia
     inertia = {
-        "ixx": props.A11 * 1e-12 * PLA_DENSITY,  # mm^4 to m^4, then * density
+        "ixx": props.A11 * 1e-12 * PLA_DENSITY,
         "ixy": props.A12 * 1e-12 * PLA_DENSITY,
         "ixz": props.A13 * 1e-12 * PLA_DENSITY,
         "iyy": props.A22 * 1e-12 * PLA_DENSITY,
         "iyz": props.A23 * 1e-12 * PLA_DENSITY,
         "izz": props.A33 * 1e-12 * PLA_DENSITY,
     }
-    return {
-        "mass": mass,
-        "com": com,
-        "inertia": inertia
-    }
+    return {"mass": mass, "com": com, "inertia": inertia}
 
 def write_link(f, part):
     # If this is an App::Link, follow to the linked body
@@ -78,7 +86,7 @@ def write_link(f, part):
     print(f"Exporting link: {name}, body: {body}, has shape: {hasattr(body, 'Shape') and not body.Shape.isNull()}")
 
     mesh_path = export_mesh(body, name)
-    inertial = get_inertial(body)
+    inertial = get_inertial(body, name)
 
     f.write(f'  <link name="{name}">\n')
     f.write(f'    <inertial>\n')
