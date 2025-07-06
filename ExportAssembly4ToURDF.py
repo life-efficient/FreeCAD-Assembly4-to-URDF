@@ -208,6 +208,13 @@ def assemblyToURDF():
                     print(f'  {prop}: {getattr(joint, prop)}')
                 except Exception as e:
                     print(f'  {prop}: <error: {e}>')
+        # Compute relative transform for URDF joint origin
+        if placement1 and placement2:
+            rel = placement1.inverse().multiply(placement2)
+            xyz, rpy = format_placement(rel)
+            print(f"[DEBUG] {joint.Name} relative transform: xyz={xyz}, rpy={rpy}")
+        else:
+            xyz, rpy = "0 0 0", "0 0 0"
     # (existing extraction logic remains below for reference)
     # for joint in joint_objs:
     #     parent = getattr(joint, "Parent", None)
@@ -231,7 +238,7 @@ def assemblyToURDF():
             parent = get_link_name_from_reference(getattr(joint, "Reference1", None))
             child = get_link_name_from_reference(getattr(joint, "Reference2", None))
             placement1 = getattr(joint, "Placement1", None)
-            xyz, rpy = format_placement(placement1)
+            placement2 = getattr(joint, "Placement2", None)
             if joint.Name == "GroundedJoint":
                 # Handle grounded joint: connect base link to world as fixed
                 base_link = getattr(joint, "ObjectToGround", None)
@@ -240,9 +247,15 @@ def assemblyToURDF():
                     f.write(f'  <joint name="world_to_{base_link_name}" type="fixed">\n')
                     f.write(f'    <parent link="world"/>\n')
                     f.write(f'    <child link="{base_link_name}"/>\n')
-                    f.write(f'    <origin xyz="{xyz}" rpy="{rpy}"/>\n')
+                    f.write(f'    <origin xyz="0 0 0" rpy="0 0 0"/>\n')
                     f.write(f'  </joint>\n')
             elif parent and child:
+                # Compute relative transform for URDF joint origin
+                if placement1 and placement2:
+                    rel = placement1.inverse().multiply(placement2)
+                    xyz, rpy = format_placement(rel)
+                else:
+                    xyz, rpy = "0 0 0", "0 0 0"
                 f.write(f'  <joint name="{parent}_to_{child}" type="{joint_type}">\n')
                 f.write(f'    <parent link="{parent}"/>\n')
                 f.write(f'    <child link="{child}"/>\n')
