@@ -1,0 +1,3 @@
+- set material and infill properties in freecad
+- correctly extract material properties in script
+- apply joint constraints

@@ -7,7 +7,7 @@ import math
 
 DOC = App.ActiveDocument
 ROBOT_NAME = "my_robot"
-EXPORT_DIR = "/Users/harryberg/projects/FreeCAD Designs/macros"  # Change this to your target directory
+EXPORT_DIR = f"/Users/harryberg/projects/FreeCAD-Designs/macros/{ROBOT_NAME}"
 MESH_FORMAT = "stl"  # or 'dae'
 SCALE = 0.001  # mm → m
 PLA_DENSITY = 1240  # kg/m^3
@@ -156,7 +156,7 @@ def get_link_name_from_reference(ref):
         return ref[1][0].split('.')[0]
     return None
 
-def main():
+def assemblyToURDF():
     print('running' + '\n'*5)
     ensure_dir(EXPORT_DIR)
     ensure_dir(os.path.join(EXPORT_DIR, "meshes"))
@@ -238,4 +238,9 @@ def main():
 
         f.write('</robot>\n')
 
-main()
+    # Success message and summary
+    print(f"\nExport complete!\nURDF exported to: {os.path.join(EXPORT_DIR, 'robot.urdf')}\nExported {len(robot_parts)} robot parts and {len(joint_objs)} joints.")
+
+
+def main():
+    assemblyToURDF()
