@@ -8,8 +8,9 @@ import math
 DOC = App.ActiveDocument
 ROBOT_NAME = "my_robot"
 EXPORT_DIR = "/Users/harryberg/projects/FreeCAD Designs/macros"  # Change this to your target directory
-MESH_FORMAT = "dae"  # or 'stl'
+MESH_FORMAT = "stl"  # or 'dae'
 SCALE = 0.001  # mm → m
+PLA_DENSITY = 1240  # kg/m^3
 
 def ensure_dir(path):
     if not os.path.exists(path):
@@ -33,34 +34,49 @@ def format_placement(placement):
 
 def export_mesh(body, name):
     mesh_path = os.path.join(EXPORT_DIR, "meshes", f"{name}.{MESH_FORMAT}")
-    shape = body.Shape.copy()
-    shape.scale(SCALE)
-    Mesh.export([shape], mesh_path)
+    Mesh.export([body], mesh_path)
     return f"package://{ROBOT_NAME}/meshes/{name}.{MESH_FORMAT}"
 
 def get_inertial(body):
-    props = body.Shape.MatrixOfInertia
-    mass = body.Shape.Mass
+    # Calculate mass from volume and fixed PLA density
+    volume_mm3 = body.Shape.Volume  # mm^3
+    volume_m3 = volume_mm3 * 1e-9   # m^3
+    mass = volume_m3 * PLA_DENSITY
     com = body.Shape.CenterOfMass
+    # Scale inertia from FreeCAD's mm^4 to m^4 and multiply by density
+    props = body.Shape.MatrixOfInertia
+    inertia = {
+        "ixx": props.A11 * 1e-12 * PLA_DENSITY,  # mm^4 to m^4, then * density
+        "ixy": props.A12 * 1e-12 * PLA_DENSITY,
+        "ixz": props.A13 * 1e-12 * PLA_DENSITY,
+        "iyy": props.A22 * 1e-12 * PLA_DENSITY,
+        "iyz": props.A23 * 1e-12 * PLA_DENSITY,
+        "izz": props.A33 * 1e-12 * PLA_DENSITY,
+    }
     return {
         "mass": mass,
         "com": com,
-        "inertia": {
-            "ixx": props.A11,
-            "ixy": props.A12,
-            "ixz": props.A13,
-            "iyy": props.A22,
-            "iyz": props.A23,
-            "izz": props.A33
-        }
+        "inertia": inertia
     }
 
 def write_link(f, part):
-    body = next((obj for obj in part.Group if obj.TypeId == "PartDesign::Body"), None)
-    if not body:
+    # If this is an App::Link, follow to the linked body
+    if part.TypeId == "App::Link":
+        body = part.LinkedObject
+        name = part.Name
+    else:
+        # Direct PartDesign::Body
+        body = part
+        name = part.Name
+    if not body or body.TypeId != "PartDesign::Body":
+        print(f"Skipping {name}: not a PartDesign::Body")
         return
+    # Check for valid shape
+    if not hasattr(body, "Shape") or body.Shape is None or body.Shape.isNull():
+        print(f"Skipping {name}: no valid shape to export")
+        return
+    print(f"Exporting link: {name}, body: {body}, has shape: {hasattr(body, 'Shape') and not body.Shape.isNull()}")
 
-    name = part.Name
     mesh_path = export_mesh(body, name)
     inertial = get_inertial(body)
 
