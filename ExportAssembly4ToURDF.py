@@ -7,7 +7,7 @@ import math
 
 DOC = App.ActiveDocument
 ROBOT_NAME = "my_robot"
-EXPORT_DIR = f"/Users/harryberg/projects/FreeCAD-Designs/macros/{ROBOT_NAME}"
+EXPORT_DIR = os.path.join(os.path.expanduser("~"), "FreeCAD-Designs", "macros", ROBOT_NAME)
 MESH_FORMAT = "stl"  # or 'dae'
 SCALE = 0.001  # mm → m
 PLA_DENSITY = 1240  # kg/m^3
@@ -240,6 +240,12 @@ def assemblyToURDF():
 
     # Success message and summary
     print(f"\nExport complete!\nURDF exported to: {os.path.join(EXPORT_DIR, 'robot.urdf')}\nExported {len(robot_parts)} robot parts and {len(joint_objs)} joints.")
+
+    # Print the contents of the exported URDF for debugging
+    urdf_path = os.path.join(EXPORT_DIR, 'robot.urdf')
+    print("\n--- URDF Output ---")
+    with open(urdf_path, 'r') as urdf_file:
+        print(urdf_file.read())
 
 
 def main():
