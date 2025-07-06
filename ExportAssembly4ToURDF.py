@@ -184,9 +184,22 @@ def main():
     # print(grounded_joint.LinkedObject.Placement)
     # print(grounded_joint.LinkedObject.LinkedObject)
     # return 
+    # Collect only real robot parts: App::Link to PartDesign::Body, or direct PartDesign::Body
     robot_parts = []
-    robot_parts.extend(collect_parts_recursive([assembly]))
+    for obj in collect_parts_recursive([assembly]):
+        if obj.TypeId == "App::Link" and getattr(obj, "LinkedObject", None) and getattr(obj.LinkedObject, "TypeId", None) == "PartDesign::Body":
+            robot_parts.append(obj)
+        elif obj.TypeId == "PartDesign::Body":
+            robot_parts.append(obj)
+    print('Robot parts to export:')
+    for part in robot_parts:
+        if part.TypeId == "App::Link":
+            print(f'  {part.Name} (App::Link) → {part.LinkedObject.Name} ({part.LinkedObject.TypeId})')
+        else:
+            print(f'  {part.Name} ({part.TypeId})')
     print('num robot parts', len(robot_parts))
+    for part in robot_parts:
+        print(part.Name, part.TypeId)
     return
     # for assembly in top_assemblies:
     #     robot_parts.extend(collect_parts_recursive([assembly]))
