@@ -7,7 +7,7 @@ import math
 
 DOC = App.ActiveDocument
 ROBOT_NAME = "my_robot"
-EXPORT_DIR = os.path.join(os.path.expanduser("~"), "FreeCAD-Designs", "macros", ROBOT_NAME)
+EXPORT_DIR = os.path.join(os.path.expanduser("~"), "projects/FreeCAD-Designs", "macros", ROBOT_NAME)
 MESH_FORMAT = "stl"  # or 'dae'
 SCALE = 0.001  # mm → m
 PLA_DENSITY = 1240  # kg/m^3
@@ -93,7 +93,7 @@ def write_link(f, part):
 
     mesh_path = export_mesh(body, name)
     inertial = get_inertial(body, name)
-    xyz, rpy = format_placement(placement)
+    # xyz, rpy = format_placement(placement)  # No longer used for visual/collision
 
     f.write(f'  <link name="{name}">\n')
     f.write(f'    <inertial>\n')
@@ -105,13 +105,13 @@ def write_link(f, part):
     f.write('/>\n')
     f.write(f'    </inertial>\n')
     f.write(f'    <visual>\n')
-    f.write(f'      <origin xyz="{xyz}" rpy="{rpy}"/>\n')
+    f.write(f'      <origin xyz="0 0 0" rpy="0 0 0"/>\n')
     f.write(f'      <geometry>\n')
     f.write(f'        <mesh filename="{mesh_path}"/>\n')
     f.write(f'      </geometry>\n')
     f.write(f'    </visual>\n')
     f.write(f'    <collision>\n')
-    f.write(f'      <origin xyz="{xyz}" rpy="{rpy}"/>\n')
+    f.write(f'      <origin xyz="0 0 0" rpy="0 0 0"/>\n')
     f.write(f'      <geometry>\n')
     f.write(f'        <mesh filename="{mesh_path}"/>\n')
     f.write(f'      </geometry>\n')
@@ -200,6 +200,14 @@ def assemblyToURDF():
         placement1 = getattr(joint, "Placement1", None)
         placement2 = getattr(joint, "Placement2", None)
         print(f"Joint: {joint.Name}, type: {joint_type}, parent: {parent}, child: {child}, placement1: {placement1}, placement2: {placement2}")
+        # Debug print all properties of the joint
+        print(f"All properties for joint {joint.Name}:")
+        for prop in dir(joint):
+            if not prop.startswith('__'):
+                try:
+                    print(f'  {prop}: {getattr(joint, prop)}')
+                except Exception as e:
+                    print(f'  {prop}: <error: {e}>')
     # (existing extraction logic remains below for reference)
     # for joint in joint_objs:
     #     parent = getattr(joint, "Parent", None)
