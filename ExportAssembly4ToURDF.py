@@ -11,6 +11,7 @@ EXPORT_DIR = os.path.join(os.path.expanduser("~"), "FreeCAD-Designs", "macros", 
 MESH_FORMAT = "stl"  # or 'dae'
 SCALE = 0.001  # mm → m
 PLA_DENSITY = 1240  # kg/m^3
+USE_PACKAGE_PREFIX = False  # Set to True for package://, False for absolute path
 
 def ensure_dir(path):
     if not os.path.exists(path):
@@ -35,7 +36,10 @@ def format_placement(placement):
 def export_mesh(body, name):
     mesh_path = os.path.join(EXPORT_DIR, "meshes", f"{name}.{MESH_FORMAT}")
     Mesh.export([body], mesh_path)
-    return f"package://{ROBOT_NAME}/meshes/{name}.{MESH_FORMAT}"
+    if USE_PACKAGE_PREFIX:
+        return f"package://{ROBOT_NAME}/meshes/{name}.{MESH_FORMAT}"
+    else:
+        return mesh_path
 
 def get_inertial(body, name=None):
     # Hardcode STS3215 servo values if detected in link name
@@ -72,10 +76,12 @@ def write_link(f, part):
     if part.TypeId == "App::Link":
         body = part.LinkedObject
         name = part.Name
+        placement = part.Placement
     else:
         # Direct PartDesign::Body
         body = part
         name = part.Name
+        placement = part.Placement
     if not body or body.TypeId != "PartDesign::Body":
         print(f"Skipping {name}: not a PartDesign::Body")
         return
@@ -87,6 +93,7 @@ def write_link(f, part):
 
     mesh_path = export_mesh(body, name)
     inertial = get_inertial(body, name)
+    xyz, rpy = format_placement(placement)
 
     f.write(f'  <link name="{name}">\n')
     f.write(f'    <inertial>\n')
@@ -98,13 +105,13 @@ def write_link(f, part):
     f.write('/>\n')
     f.write(f'    </inertial>\n')
     f.write(f'    <visual>\n')
-    f.write(f'      <origin xyz="0 0 0" rpy="0 0 0"/>\n')
+    f.write(f'      <origin xyz="{xyz}" rpy="{rpy}"/>\n')
     f.write(f'      <geometry>\n')
     f.write(f'        <mesh filename="{mesh_path}"/>\n')
     f.write(f'      </geometry>\n')
     f.write(f'    </visual>\n')
     f.write(f'    <collision>\n')
-    f.write(f'      <origin xyz="0 0 0" rpy="0 0 0"/>\n')
+    f.write(f'      <origin xyz="{xyz}" rpy="{rpy}"/>\n')
     f.write(f'      <geometry>\n')
     f.write(f'        <mesh filename="{mesh_path}"/>\n')
     f.write(f'      </geometry>\n')
