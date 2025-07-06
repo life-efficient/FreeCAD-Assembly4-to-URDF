@@ -113,6 +113,12 @@ def find_joints_group(assembly):
                 return obj
     return None
 
+def trygetattr(obj, prop):
+    try:
+        return getattr(obj, prop)
+    except:
+        return "<no " + prop + ">"
+
 def main():
     print('running' + '\n'*5)
     ensure_dir(EXPORT_DIR)
@@ -180,6 +186,8 @@ def main():
     # return 
     robot_parts = []
     robot_parts.extend(collect_parts_recursive([assembly]))
+    print('num robot parts', len(robot_parts))
+    return
     # for assembly in top_assemblies:
     #     robot_parts.extend(collect_parts_recursive([assembly]))
 
@@ -191,7 +199,7 @@ def main():
     joint_objs = joints_group.Group if joints_group else []
     print('num joints', len(joint_objs))
     for joint in joint_objs:
-        print(f'Joint: {joint.Name}, TypeId: {joint.TypeId}, type: {getattr(joint, "JointType", "<no JointType>")}')
+        print(f'Joint: {joint.Name}, TypeId: {joint.TypeId}, type: {trygetattr(joint, "JointType")}')
         # print('Attributes:', dir(joint))
         # print('Properties:')
         # for prop in joint.PropertiesList:
