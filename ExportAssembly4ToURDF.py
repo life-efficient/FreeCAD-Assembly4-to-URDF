@@ -124,8 +124,6 @@ def main():
     ensure_dir(EXPORT_DIR)
     ensure_dir(os.path.join(EXPORT_DIR, "meshes"))
 
-    # Find the top-level assemblies (App::Part)
-    # print([(obj.Name, obj.TypeId) for obj in DOC.Objects])
     assembly = [obj for obj in DOC.Objects if obj.TypeId == "Assembly::AssemblyObject"]
     try:
         assembly = assembly[0]
@@ -133,58 +131,6 @@ def main():
         print('no assembly found')
         return
     
-
-    # jointgroup = [obj for obj in assembly.Group if obj.TypeId == "Assembly::JointGroup"]
-    # try:
-    #     jointgroup = jointgroup[0]
-    # except:
-    #     print('no joint group found')
-    #     return
-    # # print(jointgroup.Name)
-    # # print([(obj.Name, obj.TypeId) for obj in jointgroup.Group])
-    # joints = [obj for obj in jointgroup.Group]
-    # if len(joints) == 0:
-    #     print('no joints found')
-    #     return
-    # print([(obj.Name, obj.TypeId) for obj in joints]) # [('GroundedJoint', 'App::FeaturePython'), ('Joint', 'App::FeaturePython')]
-    # try:
-    #     grounded_joint = [obj for obj in joints if obj.Name == 'GroundedJoint'][0]
-    # except:
-    #     print('no grounded joint found')
-    #     return
-    # print(grounded_joint.Name)
-    # print(grounded_joint.Placement)
-
-    # for joint in joints:
-    #     print()
-    #     # if joint.Name == 'GroundedJoint':
-    #     #     # print('joints have the following properties:')
-    #     #     # for prop in joint.PropertiesList:
-    #     #     #     print(f'\t{prop}: {getattr(joint, prop, None)}')
-    #         # continue
-    #     print(joint.Name)
-    #     # try:    
-    #     #     print(joint.Placement)
-    #     # except:
-    #     #     print('\tno placement found')
-    #     # print('\t', dir(joint))
-    #     print('\t', joint.PropertiesList)
-    #     try:
-    #         print('\t', joint.JointType)
-    #     except:
-    #         continue
-    #     for prop in joint.PropertiesList:
-    #         print(f'\t{prop}: {getattr(joint, prop, None)}')
-        # print(joint.LinkedObject)
-        # print(joint.LinkedObject.Name)
-        # print(joint.LinkedObject.Placement)
-        # print(joint.LinkedObject.LinkedObject)
-    # print(grounded_joint.LinkedObject)
-    # print(grounded_joint.LinkedObject.Name)
-    # print(grounded_joint.LinkedObject.Placement)
-    # print(grounded_joint.LinkedObject.LinkedObject)
-    # return 
-    # Collect only real robot parts: App::Link to PartDesign::Body, or direct PartDesign::Body
     robot_parts = []
     for obj in collect_parts_recursive([assembly]):
         if obj.TypeId == "App::Link" and getattr(obj, "LinkedObject", None) and getattr(obj.LinkedObject, "TypeId", None) == "PartDesign::Body":
@@ -198,15 +144,6 @@ def main():
         else:
             print(f'  {part.Name} ({part.TypeId})')
     print('num robot parts', len(robot_parts))
-    for part in robot_parts:
-        print(part.Name, part.TypeId)
-    return
-    # for assembly in top_assemblies:
-    #     robot_parts.extend(collect_parts_recursive([assembly]))
-
-    # lcs_objs = [obj for obj in DOC.Objects if "LCS" in obj.Name]
-    # print('num robot parts', len(robot_parts))
-    # print('num lcs objs', len(lcs_objs))
 
     joints_group = find_joints_group(assembly) if assembly else None
     joint_objs = joints_group.Group if joints_group else []
