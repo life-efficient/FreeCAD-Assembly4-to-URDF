@@ -71,7 +71,7 @@ def get_inertial(body, name=None):
     }
     return {"mass": mass, "com": com, "inertia": inertia}
 
-def write_link(f, part):
+def write_link(f, part, child_placement2_map=None):
     # If this is an App::Link, follow to the linked body
     if part.TypeId == "App::Link":
         body = part.LinkedObject
@@ -93,7 +93,9 @@ def write_link(f, part):
 
     mesh_path = export_mesh(body, name)
     inertial = get_inertial(body, name)
-    # xyz, rpy = format_placement(placement)  # No longer used for visual/collision
+
+    # Always use identity for <visual> and <collision> origin
+    xyz, rpy = "0 0 0", "0 0 0"
 
     f.write(f'  <link name="{name}">\n')
     f.write(f'    <inertial>\n')
@@ -105,13 +107,13 @@ def write_link(f, part):
     f.write('/>\n')
     f.write(f'    </inertial>\n')
     f.write(f'    <visual>\n')
-    f.write(f'      <origin xyz="0 0 0" rpy="0 0 0"/>\n')
+    f.write(f'      <origin xyz="{xyz}" rpy="{rpy}"/>\n')
     f.write(f'      <geometry>\n')
     f.write(f'        <mesh filename="{mesh_path}"/>\n')
     f.write(f'      </geometry>\n')
     f.write(f'    </visual>\n')
     f.write(f'    <collision>\n')
-    f.write(f'      <origin xyz="0 0 0" rpy="0 0 0"/>\n')
+    f.write(f'      <origin xyz="{xyz}" rpy="{rpy}"/>\n')
     f.write(f'      <geometry>\n')
     f.write(f'        <mesh filename="{mesh_path}"/>\n')
     f.write(f'      </geometry>\n')
@@ -261,13 +263,28 @@ def assemblyToURDF():
     joints_group = find_joints_group(assembly) if assembly else None
     joint_objs = joints_group.Group if joints_group else []
     print('num joints', len(joint_objs))
-    # Write URDF links and joints (joints writing to be implemented next)
+
+    # Build mapping: link name -> Placement2 (from joint where it is a child)
+    child_placement2_map = {}
+    for joint in joint_objs:
+        reference2 = getattr(joint, "Reference2", None)
+        placement2 = getattr(joint, "Placement2", None)
+        child = get_link_name_from_reference(reference2)
+        if child and placement2:
+            child_placement2_map[child] = placement2
+        # Special case: grounded joint
+        if getattr(joint, "Reference1", None) is None and getattr(joint, "Reference2", None) is None:
+            obj_to_ground = getattr(joint, "ObjectToGround", None)
+            if obj_to_ground and hasattr(obj_to_ground, "Name") and hasattr(obj_to_ground, "Placement"):
+                child_placement2_map[obj_to_ground.Name] = obj_to_ground.Placement
+
+    # Write URDF links and joints
     with open(os.path.join(EXPORT_DIR, "robot.urdf"), "w") as f:
         f.write(f'<robot name="{ROBOT_NAME}">\n\n')
 
-        # Write all links
+        # Write all links, passing the placement2 map
         for part in robot_parts:
-            write_link(f, part)
+            write_link(f, part, child_placement2_map)
 
         # Write all joints
         for joint in joint_objs:
