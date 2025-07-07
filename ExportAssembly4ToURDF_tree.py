@@ -4,7 +4,6 @@ import Mesh
 import os
 import math
 
-from utils_math import radians, format_vector, format_rotation, format_placement
 from utils_io import ensure_dir
 from freecad_helpers import get_link_name_from_reference, export_mesh, get_inertial
 
@@ -308,14 +307,15 @@ def assemblyToURDF_tree():
             obj_to_ground = getattr(joint, "ObjectToGround", None)
             if obj_to_ground and hasattr(obj_to_ground, "Name"):
                 grounded_links.append(obj_to_ground.Name)
-    with open(os.path.join(EXPORT_DIR, "robot_tree.urdf"), "w") as f:
+    urdf_file = os.path.join(EXPORT_DIR, "robot.urdf")
+    with open(urdf_file, "w") as f:
         f.write(f'<robot name="{ROBOT_NAME}">\n\n')
         visited_links = set()
         visited_joints = set()
         for root_link in grounded_links:
             traverse_graph(f, root_link, robot_parts_map, link_to_joints, visited_links, visited_joints, mesh_offset_placement=None, is_root=True, parent_name="world")
         f.write('</robot>\n')
-    print(f"\nExport complete!\nURDF exported to: {os.path.join(EXPORT_DIR, 'robot_tree.urdf')}")
+    print(f"\nExport complete!\nURDF exported to: {urdf_file}")
 
 def main():
     assemblyToURDF_tree() 
