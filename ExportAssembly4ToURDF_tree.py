@@ -6,7 +6,7 @@ import math
 
 from utils_math import radians, format_vector, format_rotation, format_placement
 from utils_io import ensure_dir
-from freecad_helpers import get_link_name_from_reference, export_mesh, get_inertial, get_lcs_placement_from_reference
+from freecad_helpers import get_link_name_from_reference, export_mesh, get_inertial
 
 DOC = App.ActiveDocument
 ROBOT_NAME = "my_robot"
@@ -17,14 +17,44 @@ PLA_DENSITY = 1240  # kg/m^3
 USE_PACKAGE_PREFIX = False  # Set to True for package://, False for absolute path
 MANUAL_CHECK = True  # Set to True to print human-readable transform checks
 
+# Add a global variable to track if we've already cleared the manual check file this run
+MANUAL_CHECK_FILE = os.path.join(os.path.dirname(__file__), "manual_check.txt")
+_manual_check_file_cleared = False
+
 def print_manual_check(name, parent, xyz, rpy, kind):
+    global _manual_check_file_cleared
     x_raw, y_raw, z_raw = xyz.split()
+    # Remove trailing zeros and unnecessary decimal points
+    def clean_num(val):
+        try:
+            fval = float(val)
+            if fval.is_integer():
+                return str(int(fval))
+            else:
+                return str(fval).rstrip('0').rstrip('.') if '.' in str(fval) else str(fval)
+        except Exception:
+            return val
+    x_raw_c = clean_num(x_raw)
+    y_raw_c = clean_num(y_raw)
+    z_raw_c = clean_num(z_raw)
     rx_deg = math.degrees(float(rpy.split()[0]))
     ry_deg = math.degrees(float(rpy.split()[1]))
     rz_deg = math.degrees(float(rpy.split()[2]))
-    print(f"Does this look right for {kind} '{name}' relative to '{parent}'?")
-    print(f"  Translated by: X: {x_raw} Y: {y_raw} Z: {z_raw}")
-    print(f"  Rotated by:   X: {rx_deg:.1f}° Y: {ry_deg:.1f}° Z: {rz_deg:.1f}°")
+    lines = [
+        f"Does this look right for {kind} '{name}' relative to '{parent}'?",
+        f"  Translated by: X: {x_raw_c} Y: {y_raw_c} Z: {z_raw_c}",
+        f"  Rotated by:   X: {rx_deg:.1f}° Y: {ry_deg:.1f}° Z: {rz_deg:.1f}°"
+    ]
+    for line in lines:
+        print(line)
+    print()
+    # Overwrite the file at the start of each run, append for subsequent calls
+    mode = 'w' if not _manual_check_file_cleared else 'a'
+    with open(MANUAL_CHECK_FILE, mode, encoding='utf-8') as f:
+        for line in lines:
+            f.write(line + '\n')
+        f.write('\n')
+    _manual_check_file_cleared = True
 
 def write_link(f, part, mesh_offset_placement=None, is_root=False, joint_name=None, parent_name=None):
     from freecad_helpers import export_mesh, get_inertial
@@ -50,7 +80,7 @@ def write_link(f, part, mesh_offset_placement=None, is_root=False, joint_name=No
         if mesh_offset_placement is None:
             raise RuntimeError(f"ERROR: Could not find joint attachment frame (Placement) for link '{name}' (joint: '{joint_name}'). This usually means the joint reference is invalid or not supported by the exporter. Please check your Assembly4 joint definition.")
         mesh_offset = mesh_offset_placement.inverse()
-        xyz, rpy = format_placement(mesh_offset)
+        xyz, rpy = format_placement(mesh_offset, scale=SCALE)
         if MANUAL_CHECK:
             print_manual_check(name, parent_name, xyz, rpy, kind="LINK")
     f.write(f'  <link name="{name}">\n')
@@ -217,12 +247,12 @@ def traverse_graph(f, link_name, robot_parts_map, link_to_joints, visited_links,
         else:
             parent = parent_link
             child = child_link
-            semantic_name = f"{sanitize(parent)}_to_{sanitize(child)}_{joint_type}"
+            semantic_name = f"{sanitize(parent)}-{sanitize(child)}_{joint_type}"
         if parent_placement and child_placement:
             rel = parent_placement.inverse().multiply(child_placement)
-            joint_xyz, joint_rpy = format_placement(rel)
+            joint_xyz, joint_rpy = format_placement(rel, scale=SCALE)
             if MANUAL_CHECK:
-                print_manual_check(getattr(joint, 'Name', None), parent, joint_xyz, joint_rpy, kind="JOINT")
+                print_manual_check(semantic_name, parent, joint_xyz, joint_rpy, kind="JOINT")
         else:
             raise RuntimeError(f"ERROR: Could not find joint attachment frames (Placement1/2) for joint '{getattr(joint, 'Name', None)}' (parent: '{parent}', child: '{child}').")
         if joint_type == "fixed":

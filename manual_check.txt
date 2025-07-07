@@ -1,0 +1,36 @@
+Does this look right for LINK (root) 'Foot_V2' relative to 'world'?
+  Translated by: X: 0 Y: 0 Z: 0
+  Rotated by:   X: 0.0° Y: 0.0° Z: 0.0°
+
+Does this look right for JOINT 'Foot_V2-STS3125_revolute' relative to 'Foot_V2'?
+  Translated by: X: 0 Y: 0 Z: -0.5
+  Rotated by:   X: 0.0° Y: 0.0° Z: 0.0°
+
+Does this look right for LINK 'STS3125' relative to 'Foot_V2'?
+  Translated by: X: 0 Y: 0 Z: -18
+  Rotated by:   X: -0.0° Y: 0.0° Z: 90.0°
+
+Does this look right for JOINT 'STS3125-Servo_Case_to_Grid_fixed' relative to 'STS3125'?
+  Translated by: X: 35 Y: 0 Z: 0
+  Rotated by:   X: -180.0° Y: 0.0° Z: -180.0°
+
+Does this look right for LINK 'Servo_Case_to_Grid' relative to 'STS3125'?
+  Translated by: X: 0 Y: 16 Z: 0
+  Rotated by:   X: 0.0° Y: -90.0° Z: -180.0°
+
+Does this look right for JOINT 'Servo_Case_to_Grid-_x6_fixed' relative to 'Servo_Case_to_Grid'?
+  Translated by: X: 13 Y: -55 Z: -16
+  Rotated by:   X: -90.0° Y: 0.0° Z: -90.0°
+
+Does this look right for LINK '_x6' relative to 'Servo_Case_to_Grid'?
+  Translated by: X: -50 Y: 0 Z: -5
+  Rotated by:   X: 0.0° Y: -0.0° Z: 0.0°
+
+Does this look right for JOINT 'Servo_Case_to_Grid-_x007_fixed' relative to 'Servo_Case_to_Grid'?
+  Translated by: X: 13 Y: -45 Z: 16
+  Rotated by:   X: -90.0° Y: 0.0° Z: -90.0°
+
+Does this look right for LINK '_x007' relative to 'Servo_Case_to_Grid'?
+  Translated by: X: -50 Y: 0 Z: -5
+  Rotated by:   X: 0.0° Y: -0.0° Z: 0.0°
+
