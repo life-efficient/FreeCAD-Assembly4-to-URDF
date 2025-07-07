@@ -43,4 +43,24 @@ def get_inertial(body, name=None):
         "iyz": props.A23 * 1e-12 * PLA_DENSITY,
         "izz": props.A33 * 1e-12 * PLA_DENSITY,
     }
-    return {"mass": mass, "com": com, "inertia": inertia} 
+    return {"mass": mass, "com": com, "inertia": inertia}
+
+
+def get_joint_urdf_transform(parent_placement, child_placement):
+    """
+    Compute the URDF joint origin transform (parent frame to joint frame) as parent_placement * child_placement.inverse().
+    Returns a FreeCAD.Placement.
+    """
+    return parent_placement.multiply(child_placement.inverse())
+
+
+def get_joint_axis_in_urdf_frame(joint_placement):
+    """
+    Get the Z axis of the joint's local frame, expressed in the parent link's frame.
+    Returns a tuple (x, y, z).
+    """
+    # The Z axis in the joint's local frame is (0, 0, 1)
+    z_axis_local = App.Vector(0, 0, 1)
+    # Rotate it into the parent frame
+    z_axis_parent = joint_placement.Rotation.multVec(z_axis_local)
+    return (z_axis_parent.x, z_axis_parent.y, z_axis_parent.z) 

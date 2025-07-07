@@ -5,7 +5,7 @@ import os
 import math
 
 from utils_io import ensure_dir
-from freecad_helpers import get_link_name_from_reference, export_mesh, get_inertial
+from freecad_helpers import get_link_name_from_reference, export_mesh, get_inertial, get_joint_urdf_transform, get_joint_axis_in_urdf_frame
 
 DOC = App.ActiveDocument
 ROBOT_NAME = "my_robot"
@@ -249,8 +249,15 @@ def traverse_graph(f, link_name, robot_parts_map, link_to_joints, visited_links,
             child = child_link
             semantic_name = f"{sanitize(parent)}-{sanitize(child)}_{joint_type}"
         if parent_placement and child_placement:
-            # Joints: use parent_placement only
-            joint_xyz, joint_rpy = format_placement(parent_placement, scale=SCALE)
+            # Use helper to get joint transform (parent frame to joint frame)
+            joint_placement = get_joint_urdf_transform(parent_placement, child_placement)
+            joint_xyz, joint_rpy = format_placement(joint_placement, scale=SCALE)
+            # Optionally, get the joint axis in parent frame (for revolute/prismatic)
+            joint_axis = get_joint_axis_in_urdf_frame(joint_placement)
+            print(f"[DEBUG] Joint: {semantic_name}")
+            print(f"  joint_placement.Base: {joint_placement.Base}")
+            print(f"  joint_placement.Rotation (Euler): {joint_placement.Rotation.toEuler()}")
+            print(f"  joint_axis (parent frame): {joint_axis}")
             if MANUAL_CHECK:
                 print_manual_check(semantic_name, parent, joint_xyz, joint_rpy, kind="JOINT")
         else:
