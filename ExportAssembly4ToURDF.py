@@ -118,6 +118,29 @@ def write_link(f, part):
     f.write(f'    </collision>\n')
     f.write(f'  </link>\n')
 
+def writeFixedJoint(f, joint, semantic_name, parent, child, xyz, rpy):
+    f.write(f'  <joint name="{semantic_name}" type="fixed">\n')
+    f.write(f'    <parent link="{parent}"/>\n')
+    f.write(f'    <child link="{child}"/>\n')
+    f.write(f'    <origin xyz="{xyz}" rpy="{rpy}"/>\n')
+    f.write('  </joint>\n')
+
+def writeRevoluteJoint(f, joint, semantic_name, parent, child, xyz, rpy, axis_vec):
+    f.write(f'  <joint name="{semantic_name}" type="revolute">\n')
+    f.write(f'    <parent link="{parent}"/>\n')
+    f.write(f'    <child link="{child}"/>\n')
+    f.write(f'    <origin xyz="{xyz}" rpy="{rpy}"/>\n')
+    if axis_vec is not None:
+        f.write(f'    <axis xyz="{axis_vec.x} {axis_vec.y} {axis_vec.z}"/>\n')
+    else:
+        f.write('    <axis xyz="0 0 1"/>\n')
+    lower = getattr(joint, "LowerLimit", -3.14)
+    upper = getattr(joint, "UpperLimit", 3.14)
+    effort = getattr(joint, "Effort", 1)
+    velocity = getattr(joint, "Velocity", 1)
+    f.write(f'    <limit lower="{lower}" upper="{upper}" effort="{effort}" velocity="{velocity}"/>\n')
+    f.write('  </joint>\n')
+
 def write_joint(f, joint):
     joint_type = getattr(joint, "JointType", "revolute").lower()
     reference1 = getattr(joint, "Reference1", None)
@@ -132,12 +155,14 @@ def write_joint(f, joint):
         parent = "world"
         obj_to_ground = getattr(joint, "ObjectToGround", None)
         child = getattr(obj_to_ground, "Name", "unknown") if obj_to_ground else "unknown"
+        is_grounded = True
     else:
         parent = get_link_name_from_reference(reference1)
         child = get_link_name_from_reference(reference2)
         def sanitize(name):
             return str(name).replace(' ', '_').replace('-', '_') if name else 'none'
         semantic_name = f"{sanitize(parent)}_to_{sanitize(child)}_{joint_type}"
+        is_grounded = False
 
     print(f"Joint: {semantic_name}, type: {joint_type}, parent: {parent}, child: {child}, placement1: {placement1}, placement2: {placement2}, axis: {axis}")
     # Debug print all properties of the joint
@@ -155,6 +180,8 @@ def write_joint(f, joint):
         print(f"[DEBUG] {semantic_name} relative transform: xyz={xyz}, rpy={rpy}")
     else:
         xyz, rpy = "0 0 0", "0 0 0"
+        if not is_grounded:
+            raise Exception("No placement1 or placement2 for non-grounded joint")
     # Extract Z axis from Placement1's rotation for revolute joints
     axis_vec = None
     if placement1 is not None:
@@ -167,25 +194,13 @@ def write_joint(f, joint):
             print(f"[WARNING] {semantic_name} axis appears flipped (z < 0): {axis_vec}")
     else:
         print(f"[DEBUG] {semantic_name} axis: None (defaulting to 0 0 1)")
-    # Write the joint to the URDF file
-    f.write(f'  <joint name="{semantic_name}" type="{joint_type}">\n')
-    f.write(f'    <parent link="{parent}"/>\n')
-    f.write(f'    <child link="{child}"/>\n')
-    f.write(f'    <origin xyz="{xyz}" rpy="{rpy}"/>\n')
-    # Write axis if not fixed
-    if joint_type != "fixed":
-        if axis_vec is not None:
-            f.write(f'    <axis xyz="{axis_vec.x} {axis_vec.y} {axis_vec.z}"/>\n')
-        else:
-            f.write('    <axis xyz="0 0 1"/>\n')
-    # Write joint limits for revolute/prismatic
-    if joint_type in ["revolute", "prismatic"]:
-        lower = getattr(joint, "LowerLimit", -3.14)
-        upper = getattr(joint, "UpperLimit", 3.14)
-        effort = getattr(joint, "Effort", 1)
-        velocity = getattr(joint, "Velocity", 1)
-        f.write(f'    <limit lower="{lower}" upper="{upper}" effort="{effort}" velocity="{velocity}"/>\n')
-    f.write('  </joint>\n')
+
+    if joint_type == "fixed":
+        writeFixedJoint(f, joint, semantic_name, parent, child, xyz, rpy)
+    elif joint_type == "revolute":
+        writeRevoluteJoint(f, joint, semantic_name, parent, child, xyz, rpy, axis_vec)
+    else:
+        print(f"[WARNING] Skipping unsupported joint type: {joint_type}")
 
 def collect_parts_recursive(group):
     parts = []
