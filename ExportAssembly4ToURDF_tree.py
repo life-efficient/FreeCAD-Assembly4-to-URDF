@@ -6,17 +6,30 @@ import math
 
 from utils_math import radians, format_vector, format_rotation, format_placement
 from utils_io import ensure_dir
-from freecad_helpers import get_link_name_from_reference, export_mesh, get_inertial
+from freecad_helpers import get_link_name_from_reference, export_mesh, get_inertial, get_lcs_placement_from_reference
 
 DOC = App.ActiveDocument
 ROBOT_NAME = "my_robot"
 EXPORT_DIR = os.path.join(os.path.expanduser("~"), "projects/FreeCAD-Designs", "macros", ROBOT_NAME)
 MESH_FORMAT = "stl"  # or 'dae'
-SCALE = 0.001  # mm → m
+SCALE = 1.0  # mm → m (set to 1.0 for no scaling)
 PLA_DENSITY = 1240  # kg/m^3
 USE_PACKAGE_PREFIX = False  # Set to True for package://, False for absolute path
+MANUAL_CHECK = True  # Set to True to print human-readable transform checks
 
-def write_link(f, part, xyz="0 0 0", rpy="0 0 0"):
+def print_manual_check(name, parent, xyz, rpy, kind):
+    x_raw, y_raw, z_raw = xyz.split()
+    rx_deg = math.degrees(float(rpy.split()[0]))
+    ry_deg = math.degrees(float(rpy.split()[1]))
+    rz_deg = math.degrees(float(rpy.split()[2]))
+    print(f"Does this look right for {kind} '{name}' relative to '{parent}'?")
+    print(f"  Translated by: X: {x_raw} Y: {y_raw} Z: {z_raw}")
+    print(f"  Rotated by:   X: {rx_deg:.1f}° Y: {ry_deg:.1f}° Z: {rz_deg:.1f}°")
+
+def write_link(f, part, mesh_offset_placement=None, is_root=False, joint_name=None, parent_name=None):
+    from freecad_helpers import export_mesh, get_inertial
+    from utils_math import format_vector, format_placement
+    import FreeCAD as App
     if part.TypeId == "App::Link":
         body = part.LinkedObject
         name = part.Name
@@ -24,16 +37,22 @@ def write_link(f, part, xyz="0 0 0", rpy="0 0 0"):
         body = part
         name = part.Name
     if not body or body.TypeId != "PartDesign::Body":
-        print(f"Skipping {name}: not a PartDesign::Body")
-        return
+        raise RuntimeError(f"ERROR: {name} is not a PartDesign::Body")
     if not hasattr(body, "Shape") or body.Shape is None or body.Shape.isNull():
-        print(f"Skipping {name}: no valid shape to export")
-        return
-    print(f"Exporting link: {name}, body: {body}, has shape: {hasattr(body, 'Shape') and not body.Shape.isNull()}")
-    from freecad_helpers import export_mesh, get_inertial
-    from utils_math import format_vector
+        raise RuntimeError(f"ERROR: {name} has no valid shape to export")
     mesh_path = export_mesh(body, name)
     inertial = get_inertial(body, name)
+    xyz, rpy = "0 0 0", "0 0 0"
+    if is_root:
+        if MANUAL_CHECK:
+            print_manual_check(name, parent_name or "world", xyz, rpy, kind="LINK (root)")
+    else:
+        if mesh_offset_placement is None:
+            raise RuntimeError(f"ERROR: Could not find joint attachment frame (Placement) for link '{name}' (joint: '{joint_name}'). This usually means the joint reference is invalid or not supported by the exporter. Please check your Assembly4 joint definition.")
+        mesh_offset = mesh_offset_placement.inverse()
+        xyz, rpy = format_placement(mesh_offset)
+        if MANUAL_CHECK:
+            print_manual_check(name, parent_name, xyz, rpy, kind="LINK")
     f.write(f'  <link name="{name}">\n')
     f.write(f'    <inertial>\n')
     f.write(f'      <origin xyz="{format_vector(inertial["com"])}" rpy="0 0 0"/>\n')
@@ -149,23 +168,15 @@ def build_link_to_joints(joint_objs):
                 link_to_joints[link].append(joint)
     return link_to_joints
 
-def traverse_graph(f, link_name, robot_parts_map, link_to_joints, visited_links, visited_joints, from_joint=None, from_link=None, link_pose=None):
+def traverse_graph(f, link_name, robot_parts_map, link_to_joints, visited_links, visited_joints, from_joint=None, from_link=None, mesh_offset_placement=None, is_root=False, parent_name=None):
     from utils_math import format_placement
     from freecad_helpers import get_link_name_from_reference
     import FreeCAD as App
-    # Compute visual/collision offset from the joint we arrived from
-    # link_pose is the transform from the root to this link (in world/root frame)
-    if link_pose is None:
-        link_pose = App.Placement()  # identity
-    xyz, rpy = format_placement(link_pose)
     if link_name in visited_links:
-        print(f'[DEBUG] Link {link_name} already written, skipping.')
         return
-    print(f'[DEBUG] Writing link: {link_name} (from_joint: {getattr(from_joint, "Name", None)})')
-    print(f'[DEBUG]   Mesh offset xyz: {xyz}, rpy: {rpy}')
     part = robot_parts_map.get(link_name)
     if part:
-        write_link(f, part, xyz, rpy)
+        write_link(f, part, mesh_offset_placement, is_root=is_root, joint_name=getattr(from_joint, 'Name', None), parent_name=parent_name)
         visited_links.add(link_name)
     for joint in link_to_joints.get(link_name, []):
         if joint in visited_joints:
@@ -179,7 +190,6 @@ def traverse_graph(f, link_name, robot_parts_map, link_to_joints, visited_links,
             obj_to_ground = getattr(joint, "ObjectToGround", None)
             link1 = "world"
             link2 = obj_to_ground.Name if obj_to_ground and hasattr(obj_to_ground, "Name") else None
-        # Determine the other link
         if link1 == link_name:
             parent_link = link1
             child_link = link2
@@ -192,19 +202,9 @@ def traverse_graph(f, link_name, robot_parts_map, link_to_joints, visited_links,
             child_placement = getattr(joint, "Placement1", None)
         if child_link is None or child_link == "world" or child_link in visited_links:
             continue
-        # Compute transform from parent link frame to child link frame
-        if parent_placement and child_placement:
-            rel = parent_placement.inverse().multiply(child_placement)
-        else:
-            rel = App.Placement()
-        joint_xyz, joint_rpy = format_placement(rel)
-        # Compose with current link_pose to get child link's pose in root/world frame
-        child_pose = link_pose.multiply(rel)
-        # Axis for revolute joint
         axis_vec = None
         if parent_placement is not None:
             axis_vec = parent_placement.Rotation.multVec(App.Vector(0,0,1))
-            # If traversing in reverse, flip axis
             if parent_link != link_name and axis_vec is not None:
                 axis_vec = App.Vector(-axis_vec.x, -axis_vec.y, -axis_vec.z)
         joint_type = getattr(joint, "JointType", "revolute").lower()
@@ -218,17 +218,21 @@ def traverse_graph(f, link_name, robot_parts_map, link_to_joints, visited_links,
             parent = parent_link
             child = child_link
             semantic_name = f"{sanitize(parent)}_to_{sanitize(child)}_{joint_type}"
-        print(f'[DEBUG] Writing joint: {getattr(joint, "Name", None)} (parent: {parent}, child: {child})')
-        print(f'[DEBUG]   Joint origin xyz: {joint_xyz}, rpy: {joint_rpy}')
+        if parent_placement and child_placement:
+            rel = parent_placement.inverse().multiply(child_placement)
+            joint_xyz, joint_rpy = format_placement(rel)
+            if MANUAL_CHECK:
+                print_manual_check(getattr(joint, 'Name', None), parent, joint_xyz, joint_rpy, kind="JOINT")
+        else:
+            raise RuntimeError(f"ERROR: Could not find joint attachment frames (Placement1/2) for joint '{getattr(joint, 'Name', None)}' (parent: '{parent}', child: '{child}').")
         if joint_type == "fixed":
             writeFixedJoint(f, joint, semantic_name, parent, child, joint_xyz, joint_rpy)
         elif joint_type == "revolute":
             writeRevoluteJoint(f, joint, semantic_name, parent, child, joint_xyz, joint_rpy, axis_vec)
         else:
-            print(f"[WARNING] Skipping unsupported joint type: {joint_type}")
+            raise RuntimeError(f"ERROR: Unsupported joint type: {joint_type}")
         visited_joints.add(joint)
-        # Traverse to child link, passing the composed pose
-        traverse_graph(f, child_link, robot_parts_map, link_to_joints, visited_links, visited_joints, from_joint=joint, from_link=parent_link, link_pose=child_pose)
+        traverse_graph(f, child_link, robot_parts_map, link_to_joints, visited_links, visited_joints, from_joint=joint, from_link=parent_link, mesh_offset_placement=child_placement, is_root=False, parent_name=parent)
 
 # In assemblyToURDF_tree, use build_link_to_joints and start traversal from the grounded link(s)
 def assemblyToURDF_tree():
@@ -279,7 +283,7 @@ def assemblyToURDF_tree():
         visited_links = set()
         visited_joints = set()
         for root_link in grounded_links:
-            traverse_graph(f, root_link, robot_parts_map, link_to_joints, visited_links, visited_joints)
+            traverse_graph(f, root_link, robot_parts_map, link_to_joints, visited_links, visited_joints, mesh_offset_placement=None, is_root=True, parent_name="world")
         f.write('</robot>\n')
     print(f"\nExport complete!\nURDF exported to: {os.path.join(EXPORT_DIR, 'robot_tree.urdf')}")
 
