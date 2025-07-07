@@ -78,6 +78,7 @@ def write_link(f, part, mesh_offset_placement=None, is_root=False, joint_name=No
     else:
         if mesh_offset_placement is None:
             raise RuntimeError(f"ERROR: Could not find joint attachment frame (Placement) for link '{name}' (joint: '{joint_name}'). This usually means the joint reference is invalid or not supported by the exporter. Please check your Assembly4 joint definition.")
+        # Links: use inverse of child_placement
         mesh_offset = mesh_offset_placement.inverse()
         xyz, rpy = format_placement(mesh_offset, scale=SCALE)
         if MANUAL_CHECK:
@@ -248,8 +249,8 @@ def traverse_graph(f, link_name, robot_parts_map, link_to_joints, visited_links,
             child = child_link
             semantic_name = f"{sanitize(parent)}-{sanitize(child)}_{joint_type}"
         if parent_placement and child_placement:
-            rel = parent_placement.inverse().multiply(child_placement)
-            joint_xyz, joint_rpy = format_placement(rel, scale=SCALE)
+            # Joints: use parent_placement only
+            joint_xyz, joint_rpy = format_placement(parent_placement, scale=SCALE)
             if MANUAL_CHECK:
                 print_manual_check(semantic_name, parent, joint_xyz, joint_rpy, kind="JOINT")
         else:
@@ -261,6 +262,7 @@ def traverse_graph(f, link_name, robot_parts_map, link_to_joints, visited_links,
         else:
             raise RuntimeError(f"ERROR: Unsupported joint type: {joint_type}")
         visited_joints.add(joint)
+        # Links: pass child_placement as mesh_offset_placement for the child link
         traverse_graph(f, child_link, robot_parts_map, link_to_joints, visited_links, visited_joints, from_joint=joint, from_link=parent_link, mesh_offset_placement=child_placement, is_root=False, parent_name=parent)
 
 # In assemblyToURDF_tree, use build_link_to_joints and start traversal from the grounded link(s)
