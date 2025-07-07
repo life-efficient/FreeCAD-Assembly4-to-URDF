@@ -118,21 +118,60 @@ def write_link(f, part):
     f.write(f'    </collision>\n')
     f.write(f'  </link>\n')
 
-def write_joint(f, lcs, child_part):
-    parent = lcs.LinkedObject
-    if not parent:
-        return
-
-    parent_name = parent.Name
-    child_name = child_part.Name
-    placement = lcs.Placement
-
-    f.write(f'  <joint name="{parent_name}_to_{child_name}" type="revolute">\n')  # default: revolute
-    f.write(f'    <parent link="{parent_name}"/>\n')
-    f.write(f'    <child link="{child_name}"/>\n')
-    f.write(f'    <origin xyz="{format_vector(placement.Base)}" rpy="{format_rotation(placement.Rotation.toEuler())}"/>\n')
-    f.write(f'    <axis xyz="0 0 1"/>\n')  # default axis
-    f.write(f'  </joint>\n')
+def write_joint(f, joint):
+    joint_type = getattr(joint, "JointType", "revolute").lower()
+    parent = get_link_name_from_reference(getattr(joint, "Reference1", None))
+    child = get_link_name_from_reference(getattr(joint, "Reference2", None))
+    placement1 = getattr(joint, "Placement1", None)
+    placement2 = getattr(joint, "Placement2", None)
+    axis = getattr(joint, "Axis", None) if hasattr(joint, "Axis") else None
+    print(f"Joint: {joint.Name}, type: {joint_type}, parent: {parent}, child: {child}, placement1: {placement1}, placement2: {placement2}, axis: {axis}")
+    # Debug print all properties of the joint
+    print(f"All properties for joint {joint.Name}:")
+    for prop in dir(joint):
+        if not prop.startswith('__'):
+            try:
+                print(f'  {prop}: {getattr(joint, prop)}')
+            except Exception as e:
+                print(f'  {prop}: <error: {e}>')
+    # Compute relative transform for URDF joint origin
+    if placement1 and placement2:
+        rel = placement1.inverse().multiply(placement2)
+        xyz, rpy = format_placement(rel)
+        print(f"[DEBUG] {joint.Name} relative transform: xyz={xyz}, rpy={rpy}")
+    else:
+        xyz, rpy = "0 0 0", "0 0 0"
+    # Extract Z axis from Placement1's rotation for revolute joints
+    axis_vec = None
+    if placement1 is not None:
+        axis_vec = placement1.Rotation.multVec(App.Vector(0,0,1))
+        print(f"[DEBUG] {joint.Name} extracted axis from Placement1: {axis_vec}")
+        if abs(axis_vec.Length - 1.0) > 1e-6:
+            print(f"[WARNING] {joint.Name} axis is not a unit vector: {axis_vec}")
+        # Warn if axis is flipped (Z component negative)
+        if axis_vec.z < 0:
+            print(f"[WARNING] {joint.Name} axis appears flipped (z < 0): {axis_vec}")
+    else:
+        print(f"[DEBUG] {joint.Name} axis: None (defaulting to 0 0 1)")
+    # Write the joint to the URDF file
+    f.write(f'  <joint name="{joint.Name}" type="{joint_type}">\n')
+    f.write(f'    <parent link="{parent}"/>\n')
+    f.write(f'    <child link="{child}"/>\n')
+    f.write(f'    <origin xyz="{xyz}" rpy="{rpy}"/>\n')
+    # Write axis if not fixed
+    if joint_type != "fixed":
+        if axis_vec is not None:
+            f.write(f'    <axis xyz="{axis_vec.x} {axis_vec.y} {axis_vec.z}"/>\n')
+        else:
+            f.write('    <axis xyz="0 0 1"/>\n')
+    # Write joint limits for revolute/prismatic
+    if joint_type in ["revolute", "prismatic"]:
+        lower = getattr(joint, "LowerLimit", -3.14)
+        upper = getattr(joint, "UpperLimit", 3.14)
+        effort = getattr(joint, "Effort", 1)
+        velocity = getattr(joint, "Velocity", 1)
+        f.write(f'    <limit lower="{lower}" upper="{upper}" effort="{effort}" velocity="{velocity}"/>\n')
+    f.write('  </joint>\n')
 
 def collect_parts_recursive(group):
     parts = []
@@ -193,49 +232,6 @@ def assemblyToURDF():
     joints_group = find_joints_group(assembly) if assembly else None
     joint_objs = joints_group.Group if joints_group else []
     print('num joints', len(joint_objs))
-    for joint in joint_objs:
-        joint_type = getattr(joint, "JointType", "revolute").lower()
-        parent = get_link_name_from_reference(getattr(joint, "Reference1", None))
-        child = get_link_name_from_reference(getattr(joint, "Reference2", None))
-        placement1 = getattr(joint, "Placement1", None)
-        placement2 = getattr(joint, "Placement2", None)
-        axis = getattr(joint, "Axis", None) if hasattr(joint, "Axis") else None
-        print(f"Joint: {joint.Name}, type: {joint_type}, parent: {parent}, child: {child}, placement1: {placement1}, placement2: {placement2}, axis: {axis}")
-        # Debug print all properties of the joint
-        print(f"All properties for joint {joint.Name}:")
-        for prop in dir(joint):
-            if not prop.startswith('__'):
-                try:
-                    print(f'  {prop}: {getattr(joint, prop)}')
-                except Exception as e:
-                    print(f'  {prop}: <error: {e}>')
-        # Compute relative transform for URDF joint origin
-        if placement1 and placement2:
-            rel = placement1.inverse().multiply(placement2)
-            xyz, rpy = format_placement(rel)
-            print(f"[DEBUG] {joint.Name} relative transform: xyz={xyz}, rpy={rpy}")
-        else:
-            xyz, rpy = "0 0 0", "0 0 0"
-        # Extract Z axis from Placement1's rotation for revolute joints
-        axis_vec = None
-        if placement1 is not None:
-            axis_vec = placement1.Rotation.multVec(App.Vector(0,0,1))
-            print(f"[DEBUG] {joint.Name} extracted axis from Placement1: {axis_vec}")
-            q = placement1.Rotation.Q
-            euler = placement1.Rotation.toEuler()
-            print(f"[DEBUG] {joint.Name} Placement1 rotation quaternion: {q}")
-            print(f"[DEBUG] {joint.Name} Placement1 rotation euler: {euler}")
-        else:
-            print(f"[DEBUG] {joint.Name} axis: None (defaulting to 0 0 1)")
-    # (existing extraction logic remains below for reference)
-    # for joint in joint_objs:
-    #     parent = getattr(joint, "Parent", None)
-    #     child = getattr(joint, "Child", None)
-    #     joint_type = getattr(joint, "JointType", "revolute")
-    #     placement = getattr(joint, "Placement", None)
-    #     axis = getattr(joint, "Axis", None)
-    #     print(f"Joint: {joint.Name}, type: {joint_type}, parent: {parent}, child: {child}, placement: {placement}, axis: {axis}")
-
     # Write URDF links and joints (joints writing to be implemented next)
     with open(os.path.join(EXPORT_DIR, "robot.urdf"), "w") as f:
         f.write(f'<robot name="{ROBOT_NAME}">\n\n')
@@ -246,46 +242,7 @@ def assemblyToURDF():
 
         # Write all joints
         for joint in joint_objs:
-            joint_type = getattr(joint, "JointType", "revolute").lower()
-            parent = get_link_name_from_reference(getattr(joint, "Reference1", None))
-            child = get_link_name_from_reference(getattr(joint, "Reference2", None))
-            placement1 = getattr(joint, "Placement1", None)
-            placement2 = getattr(joint, "Placement2", None)
-            axis = getattr(joint, "Axis", None) if hasattr(joint, "Axis") else None
-            # Compute relative transform for URDF joint origin
-            if placement1 and placement2:
-                rel = placement1.inverse().multiply(placement2)
-                xyz, rpy = format_placement(rel)
-            else:
-                xyz, rpy = "0 0 0", "0 0 0"
-            # Extract Z axis from Placement1's rotation for revolute joints
-            axis_vec = None
-            if placement1 is not None:
-                axis_vec = placement1.Rotation.multVec(App.Vector(0,0,1))
-            # Use the actual axis if available, otherwise default to 0 0 1
-            if joint.Name == "GroundedJoint":
-                # Handle grounded joint: connect base link to world as fixed
-                base_link = getattr(joint, "ObjectToGround", None)
-                base_link_name = base_link.Name if base_link else None
-                if base_link_name:
-                    f.write(f'  <joint name="world_to_{base_link_name}" type="fixed">\n')
-                    f.write(f'    <parent link="world"/>\n')
-                    f.write(f'    <child link="{base_link_name}"/>\n')
-                    f.write(f'    <origin xyz="0 0 0" rpy="0 0 0"/>\n')
-                    f.write(f'  </joint>\n')
-            elif parent and child:
-                f.write(f'  <joint name="{parent}_to_{child}" type="{joint_type}">\n')
-                f.write(f'    <parent link="{parent}"/>\n')
-                f.write(f'    <child link="{child}"/>\n')
-                f.write(f'    <origin xyz="{xyz}" rpy="{rpy}"/>\n')
-                if joint_type == "revolute":
-                    if axis_vec is not None:
-                        axis_str = f"{axis_vec.x:.6f} {axis_vec.y:.6f} {axis_vec.z:.6f}"
-                    else:
-                        axis_str = "0 0 1"
-                    print(f"[DEBUG] Writing axis for {joint.Name}: {axis_str}")
-                    f.write(f'    <axis xyz="{axis_str}"/>\n')
-                f.write(f'  </joint>\n')
+            write_joint(f, joint)
 
         f.write('</robot>\n')
 
