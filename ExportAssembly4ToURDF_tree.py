@@ -149,24 +149,20 @@ def build_link_to_joints(joint_objs):
                 link_to_joints[link].append(joint)
     return link_to_joints
 
-def traverse_graph(f, link_name, robot_parts_map, link_to_joints, visited_links, visited_joints, from_joint=None, from_link=None):
+def traverse_graph(f, link_name, robot_parts_map, link_to_joints, visited_links, visited_joints, from_joint=None, from_link=None, link_pose=None):
     from utils_math import format_placement
     from freecad_helpers import get_link_name_from_reference
+    import FreeCAD as App
     # Compute visual/collision offset from the joint we arrived from
-    xyz, rpy = "0 0 0", "0 0 0"
-    if from_joint is not None:
-        # Use Placement2 if we arrived as Reference2, Placement1 if as Reference1
-        if from_link is not None:
-            if from_link == get_link_name_from_reference(getattr(from_joint, "Reference2", None)):
-                placement = getattr(from_joint, "Placement2", None)
-            else:
-                placement = getattr(from_joint, "Placement1", None)
-            if placement:
-                xyz, rpy = format_placement(placement)
+    # link_pose is the transform from the root to this link (in world/root frame)
+    if link_pose is None:
+        link_pose = App.Placement()  # identity
+    xyz, rpy = format_placement(link_pose)
     if link_name in visited_links:
         print(f'[DEBUG] Link {link_name} already written, skipping.')
         return
     print(f'[DEBUG] Writing link: {link_name} (from_joint: {getattr(from_joint, "Name", None)})')
+    print(f'[DEBUG]   Mesh offset xyz: {xyz}, rpy: {rpy}')
     part = robot_parts_map.get(link_name)
     if part:
         write_link(f, part, xyz, rpy)
@@ -184,40 +180,46 @@ def traverse_graph(f, link_name, robot_parts_map, link_to_joints, visited_links,
             link1 = "world"
             link2 = obj_to_ground.Name if obj_to_ground and hasattr(obj_to_ground, "Name") else None
         # Determine the other link
-        other_link = link2 if link1 == link_name else link1
-        if other_link is None or other_link == "world":
-            continue
-        # Write the joint
-        # Determine direction for Placement1/2 and axis
-        swap = (link_name == link2)
-        if swap:
-            placement1 = getattr(joint, "Placement2", None)
-            placement2 = getattr(joint, "Placement1", None)
+        if link1 == link_name:
+            parent_link = link1
+            child_link = link2
+            parent_placement = getattr(joint, "Placement1", None)
+            child_placement = getattr(joint, "Placement2", None)
         else:
-            placement1 = getattr(joint, "Placement1", None)
-            placement2 = getattr(joint, "Placement2", None)
+            parent_link = link2
+            child_link = link1
+            parent_placement = getattr(joint, "Placement2", None)
+            child_placement = getattr(joint, "Placement1", None)
+        if child_link is None or child_link == "world" or child_link in visited_links:
+            continue
+        # Compute transform from parent link frame to child link frame
+        if parent_placement and child_placement:
+            rel = parent_placement.inverse().multiply(child_placement)
+        else:
+            rel = App.Placement()
+        joint_xyz, joint_rpy = format_placement(rel)
+        # Compose with current link_pose to get child link's pose in root/world frame
+        child_pose = link_pose.multiply(rel)
+        # Axis for revolute joint
+        axis_vec = None
+        if parent_placement is not None:
+            axis_vec = parent_placement.Rotation.multVec(App.Vector(0,0,1))
+            # If traversing in reverse, flip axis
+            if parent_link != link_name and axis_vec is not None:
+                axis_vec = App.Vector(-axis_vec.x, -axis_vec.y, -axis_vec.z)
         joint_type = getattr(joint, "JointType", "revolute").lower()
         def sanitize(name):
             return str(name).replace(' ', '_').replace('-', '_') if name else 'none'
         if getattr(joint, "Reference1", None) is None and getattr(joint, "Reference2", None) is None:
             semantic_name = "grounded_joint"
             parent = "world"
-            child = link2
+            child = child_link
         else:
-            parent = link1 if not swap else link2
-            child = link2 if not swap else link1
+            parent = parent_link
+            child = child_link
             semantic_name = f"{sanitize(parent)}_to_{sanitize(child)}_{joint_type}"
-        if placement1 and placement2:
-            rel = placement1.inverse().multiply(placement2)
-            joint_xyz, joint_rpy = format_placement(rel)
-        else:
-            joint_xyz, joint_rpy = "0 0 0", "0 0 0"
-        axis_vec = None
-        if placement1 is not None:
-            axis_vec = placement1.Rotation.multVec(App.Vector(0,0,1))
-            if swap and axis_vec is not None:
-                axis_vec = App.Vector(-axis_vec.x, -axis_vec.y, -axis_vec.z)
         print(f'[DEBUG] Writing joint: {getattr(joint, "Name", None)} (parent: {parent}, child: {child})')
+        print(f'[DEBUG]   Joint origin xyz: {joint_xyz}, rpy: {joint_rpy}')
         if joint_type == "fixed":
             writeFixedJoint(f, joint, semantic_name, parent, child, joint_xyz, joint_rpy)
         elif joint_type == "revolute":
@@ -225,7 +227,8 @@ def traverse_graph(f, link_name, robot_parts_map, link_to_joints, visited_links,
         else:
             print(f"[WARNING] Skipping unsupported joint type: {joint_type}")
         visited_joints.add(joint)
-        traverse_graph(f, other_link, robot_parts_map, link_to_joints, visited_links, visited_joints, from_joint=joint, from_link=link_name)
+        # Traverse to child link, passing the composed pose
+        traverse_graph(f, child_link, robot_parts_map, link_to_joints, visited_links, visited_joints, from_joint=joint, from_link=parent_link, link_pose=child_pose)
 
 # In assemblyToURDF_tree, use build_link_to_joints and start traversal from the grounded link(s)
 def assemblyToURDF_tree():
