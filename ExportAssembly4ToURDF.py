@@ -199,7 +199,8 @@ def assemblyToURDF():
         child = get_link_name_from_reference(getattr(joint, "Reference2", None))
         placement1 = getattr(joint, "Placement1", None)
         placement2 = getattr(joint, "Placement2", None)
-        print(f"Joint: {joint.Name}, type: {joint_type}, parent: {parent}, child: {child}, placement1: {placement1}, placement2: {placement2}")
+        axis = getattr(joint, "Axis", None) if hasattr(joint, "Axis") else None
+        print(f"Joint: {joint.Name}, type: {joint_type}, parent: {parent}, child: {child}, placement1: {placement1}, placement2: {placement2}, axis: {axis}")
         # Debug print all properties of the joint
         print(f"All properties for joint {joint.Name}:")
         for prop in dir(joint):
@@ -215,6 +216,17 @@ def assemblyToURDF():
             print(f"[DEBUG] {joint.Name} relative transform: xyz={xyz}, rpy={rpy}")
         else:
             xyz, rpy = "0 0 0", "0 0 0"
+        # Extract Z axis from Placement1's rotation for revolute joints
+        axis_vec = None
+        if placement1 is not None:
+            axis_vec = placement1.Rotation.multVec(App.Vector(0,0,1))
+            print(f"[DEBUG] {joint.Name} extracted axis from Placement1: {axis_vec}")
+            q = placement1.Rotation.Q
+            euler = placement1.Rotation.toEuler()
+            print(f"[DEBUG] {joint.Name} Placement1 rotation quaternion: {q}")
+            print(f"[DEBUG] {joint.Name} Placement1 rotation euler: {euler}")
+        else:
+            print(f"[DEBUG] {joint.Name} axis: None (defaulting to 0 0 1)")
     # (existing extraction logic remains below for reference)
     # for joint in joint_objs:
     #     parent = getattr(joint, "Parent", None)
@@ -239,6 +251,18 @@ def assemblyToURDF():
             child = get_link_name_from_reference(getattr(joint, "Reference2", None))
             placement1 = getattr(joint, "Placement1", None)
             placement2 = getattr(joint, "Placement2", None)
+            axis = getattr(joint, "Axis", None) if hasattr(joint, "Axis") else None
+            # Compute relative transform for URDF joint origin
+            if placement1 and placement2:
+                rel = placement1.inverse().multiply(placement2)
+                xyz, rpy = format_placement(rel)
+            else:
+                xyz, rpy = "0 0 0", "0 0 0"
+            # Extract Z axis from Placement1's rotation for revolute joints
+            axis_vec = None
+            if placement1 is not None:
+                axis_vec = placement1.Rotation.multVec(App.Vector(0,0,1))
+            # Use the actual axis if available, otherwise default to 0 0 1
             if joint.Name == "GroundedJoint":
                 # Handle grounded joint: connect base link to world as fixed
                 base_link = getattr(joint, "ObjectToGround", None)
@@ -250,18 +274,17 @@ def assemblyToURDF():
                     f.write(f'    <origin xyz="0 0 0" rpy="0 0 0"/>\n')
                     f.write(f'  </joint>\n')
             elif parent and child:
-                # Compute relative transform for URDF joint origin
-                if placement1 and placement2:
-                    rel = placement1.inverse().multiply(placement2)
-                    xyz, rpy = format_placement(rel)
-                else:
-                    xyz, rpy = "0 0 0", "0 0 0"
                 f.write(f'  <joint name="{parent}_to_{child}" type="{joint_type}">\n')
                 f.write(f'    <parent link="{parent}"/>\n')
                 f.write(f'    <child link="{child}"/>\n')
                 f.write(f'    <origin xyz="{xyz}" rpy="{rpy}"/>\n')
                 if joint_type == "revolute":
-                    f.write(f'    <axis xyz="0 0 1"/>\n')
+                    if axis_vec is not None:
+                        axis_str = f"{axis_vec.x:.6f} {axis_vec.y:.6f} {axis_vec.z:.6f}"
+                    else:
+                        axis_str = "0 0 1"
+                    print(f"[DEBUG] Writing axis for {joint.Name}: {axis_str}")
+                    f.write(f'    <axis xyz="{axis_str}"/>\n')
                 f.write(f'  </joint>\n')
 
         f.write('</robot>\n')
