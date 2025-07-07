@@ -78,9 +78,8 @@ def write_link(f, part, mesh_offset_placement=None, is_root=False, joint_name=No
     else:
         if mesh_offset_placement is None:
             raise RuntimeError(f"ERROR: Could not find joint attachment frame (Placement) for link '{name}' (joint: '{joint_name}'). This usually means the joint reference is invalid or not supported by the exporter. Please check your Assembly4 joint definition.")
-        # Links: use inverse of child_placement
-        mesh_offset = mesh_offset_placement.inverse()
-        xyz, rpy = format_placement(mesh_offset, scale=SCALE)
+        # Do not apply any transform to the link mesh; let the joint <origin> handle all transforms
+        xyz, rpy = "0 0 0", "0 0 0"
         if MANUAL_CHECK:
             print_manual_check(name, parent_name, xyz, rpy, kind="LINK")
     f.write(f'  <link name="{name}">\n')
