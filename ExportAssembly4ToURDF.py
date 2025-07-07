@@ -120,12 +120,26 @@ def write_link(f, part):
 
 def write_joint(f, joint):
     joint_type = getattr(joint, "JointType", "revolute").lower()
-    parent = get_link_name_from_reference(getattr(joint, "Reference1", None))
-    child = get_link_name_from_reference(getattr(joint, "Reference2", None))
+    reference1 = getattr(joint, "Reference1", None)
+    reference2 = getattr(joint, "Reference2", None)
     placement1 = getattr(joint, "Placement1", None)
     placement2 = getattr(joint, "Placement2", None)
     axis = getattr(joint, "Axis", None) if hasattr(joint, "Axis") else None
-    print(f"Joint: {joint.Name}, type: {joint_type}, parent: {parent}, child: {child}, placement1: {placement1}, placement2: {placement2}, axis: {axis}")
+
+    # Special case for grounded joint
+    if reference1 is None and reference2 is None:
+        semantic_name = "grounded_joint"
+        parent = "world"
+        obj_to_ground = getattr(joint, "ObjectToGround", None)
+        child = getattr(obj_to_ground, "Name", "unknown") if obj_to_ground else "unknown"
+    else:
+        parent = get_link_name_from_reference(reference1)
+        child = get_link_name_from_reference(reference2)
+        def sanitize(name):
+            return str(name).replace(' ', '_').replace('-', '_') if name else 'none'
+        semantic_name = f"{sanitize(parent)}_to_{sanitize(child)}_{joint_type}"
+
+    print(f"Joint: {semantic_name}, type: {joint_type}, parent: {parent}, child: {child}, placement1: {placement1}, placement2: {placement2}, axis: {axis}")
     # Debug print all properties of the joint
     print(f"All properties for joint {joint.Name}:")
     for prop in dir(joint):
@@ -138,23 +152,23 @@ def write_joint(f, joint):
     if placement1 and placement2:
         rel = placement1.inverse().multiply(placement2)
         xyz, rpy = format_placement(rel)
-        print(f"[DEBUG] {joint.Name} relative transform: xyz={xyz}, rpy={rpy}")
+        print(f"[DEBUG] {semantic_name} relative transform: xyz={xyz}, rpy={rpy}")
     else:
         xyz, rpy = "0 0 0", "0 0 0"
     # Extract Z axis from Placement1's rotation for revolute joints
     axis_vec = None
     if placement1 is not None:
         axis_vec = placement1.Rotation.multVec(App.Vector(0,0,1))
-        print(f"[DEBUG] {joint.Name} extracted axis from Placement1: {axis_vec}")
+        print(f"[DEBUG] {semantic_name} extracted axis from Placement1: {axis_vec}")
         if abs(axis_vec.Length - 1.0) > 1e-6:
-            print(f"[WARNING] {joint.Name} axis is not a unit vector: {axis_vec}")
+            print(f"[WARNING] {semantic_name} axis is not a unit vector: {axis_vec}")
         # Warn if axis is flipped (Z component negative)
         if axis_vec.z < 0:
-            print(f"[WARNING] {joint.Name} axis appears flipped (z < 0): {axis_vec}")
+            print(f"[WARNING] {semantic_name} axis appears flipped (z < 0): {axis_vec}")
     else:
-        print(f"[DEBUG] {joint.Name} axis: None (defaulting to 0 0 1)")
+        print(f"[DEBUG] {semantic_name} axis: None (defaulting to 0 0 1)")
     # Write the joint to the URDF file
-    f.write(f'  <joint name="{joint.Name}" type="{joint_type}">\n')
+    f.write(f'  <joint name="{semantic_name}" type="{joint_type}">\n')
     f.write(f'    <parent link="{parent}"/>\n')
     f.write(f'    <child link="{child}"/>\n')
     f.write(f'    <origin xyz="{xyz}" rpy="{rpy}"/>\n')
