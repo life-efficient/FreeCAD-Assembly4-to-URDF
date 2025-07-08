@@ -48,10 +48,14 @@ def get_inertial(body, name=None):
 
 def get_joint_urdf_transform(parent_placement, child_placement):
     """
-    Compute the URDF joint origin transform (parent frame to joint frame) as parent_placement * child_placement.inverse().
+    Compute the URDF joint origin transform (parent frame to joint frame) as parent_placement * joint_alignment * child_placement.inverse().
     Returns a FreeCAD.Placement.
     """
-    return parent_placement.multiply(child_placement.inverse())
+    # Original formula (no alignment):
+    # return parent_placement.multiply(child_placement.inverse())
+    # New: include joint alignment (rotation-only)
+    joint_alignment = get_joint_alignment(parent_placement, child_placement)
+    return parent_placement.multiply(joint_alignment).multiply(child_placement.inverse())
 
 
 def get_joint_axis_in_urdf_frame(joint_placement):
@@ -64,3 +68,15 @@ def get_joint_axis_in_urdf_frame(joint_placement):
     # Rotate it into the parent frame
     z_axis_parent = joint_placement.Rotation.multVec(z_axis_local)
     return (z_axis_parent.x, z_axis_parent.y, z_axis_parent.z) 
+
+
+def get_joint_alignment(joint_placement1, joint_placement2):
+    """
+    Compute the rotation-only transform from the parent's joint attachment LCS to the child's joint attachment LCS.
+    Both placements should be in global coordinates.
+    Returns a FreeCAD.Placement representing the rotation-only transform from parent joint LCS to child joint LCS (translation set to zero).
+    """
+    difference = joint_placement1.inverse().multiply(joint_placement2)
+    rotation_difference = difference.Rotation
+    rotation_only_transform = App.Placement(App.Vector(0, 0, 0), rotation_difference)
+    return rotation_only_transform

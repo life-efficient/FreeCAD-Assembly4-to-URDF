@@ -5,7 +5,7 @@ import os
 import math
 
 from utils_io import ensure_dir
-from freecad_helpers import get_link_name_from_reference, export_mesh, get_inertial, get_joint_urdf_transform, get_joint_axis_in_urdf_frame
+from freecad_helpers import get_link_name_from_reference, export_mesh, get_inertial, get_joint_urdf_transform, get_joint_axis_in_urdf_frame, get_joint_alignment
 
 DOC = App.ActiveDocument
 ROBOT_NAME = "my_robot"
@@ -248,10 +248,13 @@ def traverse_graph(f, link_name, robot_parts_map, link_to_joints, visited_links,
             child = child_link
             semantic_name = f"{sanitize(parent)}-{sanitize(child)}_{joint_type}"
         if parent_placement and child_placement:
-            # Use helper to get joint transform (parent frame to joint frame)
+            # Compute the joint alignment rotation-only transform (rot_only)
+            joint_alignment_transform = get_joint_alignment(parent_placement, child_placement)
+            # Use get_joint_urdf_transform for the full URDF joint placement
             joint_placement = get_joint_urdf_transform(parent_placement, child_placement)
+            # Log all relevant matrices and transforms
+            log_joint_alignment_debug(joint, parent_placement, child_placement, joint_placement, joint_alignment_transform, semantic_name)
             joint_xyz, joint_rpy = format_placement(joint_placement, scale=SCALE)
-            # Optionally, get the joint axis in parent frame (for revolute/prismatic)
             joint_axis = get_joint_axis_in_urdf_frame(joint_placement)
             print(f"[DEBUG] Joint: {semantic_name}")
             print(f"  joint_placement.Base: {joint_placement.Base}")
@@ -270,6 +273,38 @@ def traverse_graph(f, link_name, robot_parts_map, link_to_joints, visited_links,
         visited_joints.add(joint)
         # Links: pass child_placement as mesh_offset_placement for the child link
         traverse_graph(f, child_link, robot_parts_map, link_to_joints, visited_links, visited_joints, from_joint=joint, from_link=parent_link, mesh_offset_placement=child_placement, is_root=False, parent_name=parent)
+
+def log_joint_alignment_debug(joint, parent_placement, child_placement, joint_placement, joint_alignment_transform, semantic_name):
+    mat = joint_alignment_transform.toMatrix()
+    print(f"[JOINT ATTACHMENT TRANSFORM] {getattr(joint, 'Name', None)} (parent to child):")
+    print(mat)
+    def z(v):
+        return 0.0 if abs(v) < 1e-10 else v
+    with open(MANUAL_CHECK_FILE, 'a', encoding='utf-8') as f_log:
+        f_log.write(f"[JOINT ATTACHMENT TRANSFORM] {getattr(joint, 'Name', None)} (parent to child):\n")
+        f_log.write(f"  ({z(mat.A11):.6g}, {z(mat.A12):.6g}, {z(mat.A13):.6g}, {z(mat.A14):.6g})\n")
+        f_log.write(f"  ({z(mat.A21):.6g}, {z(mat.A22):.6g}, {z(mat.A23):.6g}, {z(mat.A24):.6g})\n")
+        f_log.write(f"  ({z(mat.A31):.6g}, {z(mat.A32):.6g}, {z(mat.A33):.6g}, {z(mat.A34):.6g})\n")
+        f_log.write(f"  ({z(mat.A41):.6g}, {z(mat.A42):.6g}, {z(mat.A43):.6g}, {z(mat.A44):.6g})\n\n")
+        # Log rotation-only matrix
+        rot_only = joint_alignment_transform
+        rot_only_mat = rot_only.toMatrix()
+        f_log.write(f"[JOINT ALIGNMENT ROT-ONLY MATRIX] {getattr(joint, 'Name', None)} (parent to child):\n")
+        f_log.write(f"  ({z(rot_only_mat.A11):.6g}, {z(rot_only_mat.A12):.6g}, {z(rot_only_mat.A13):.6g}, {z(rot_only_mat.A14):.6g})\n")
+        f_log.write(f"  ({z(rot_only_mat.A21):.6g}, {z(rot_only_mat.A22):.6g}, {z(rot_only_mat.A23):.6g}, {z(rot_only_mat.A24):.6g})\n")
+        f_log.write(f"  ({z(rot_only_mat.A31):.6g}, {z(rot_only_mat.A32):.6g}, {z(rot_only_mat.A33):.6g}, {z(rot_only_mat.A34):.6g})\n")
+        f_log.write(f"  ({z(rot_only_mat.A41):.6g}, {z(rot_only_mat.A42):.6g}, {z(rot_only_mat.A43):.6g}, {z(rot_only_mat.A44):.6g})\n\n")
+        # Log final joint placement matrix
+        joint_placement_mat = joint_placement.toMatrix()
+        f_log.write(f"[FINAL JOINT PLACEMENT MATRIX] {getattr(joint, 'Name', None)}:\n")
+        f_log.write(f"  ({z(joint_placement_mat.A11):.6g}, {z(joint_placement_mat.A12):.6g}, {z(joint_placement_mat.A13):.6g}, {z(joint_placement_mat.A14):.6g})\n")
+        f_log.write(f"  ({z(joint_placement_mat.A21):.6g}, {z(joint_placement_mat.A22):.6g}, {z(joint_placement_mat.A23):.6g}, {z(joint_placement_mat.A24):.6g})\n")
+        f_log.write(f"  ({z(joint_placement_mat.A31):.6g}, {z(joint_placement_mat.A32):.6g}, {z(joint_placement_mat.A33):.6g}, {z(joint_placement_mat.A34):.6g})\n")
+        f_log.write(f"  ({z(joint_placement_mat.A41):.6g}, {z(joint_placement_mat.A42):.6g}, {z(joint_placement_mat.A43):.6g}, {z(joint_placement_mat.A44):.6g})\n\n")
+    print(f"[JOINT ALIGNMENT ROT-ONLY MATRIX] {getattr(joint, 'Name', None)} (parent to child):")
+    print(rot_only_mat)
+    print(f"[FINAL JOINT PLACEMENT MATRIX] {getattr(joint, 'Name', None)}:")
+    print(joint_placement_mat)
 
 # In assemblyToURDF_tree, use build_link_to_joints and start traversal from the grounded link(s)
 def assemblyToURDF_tree():
