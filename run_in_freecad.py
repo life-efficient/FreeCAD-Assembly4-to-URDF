@@ -1,0 +1,6 @@
+import importlib
+import freecad_helpers
+importlib.reload(freecad_helpers)
+import ExportAssembly4ToURDF_tree
+importlib.reload(ExportAssembly4ToURDF_tree)
+ExportAssembly4ToURDF_tree.main()
