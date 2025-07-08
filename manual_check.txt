@@ -22,7 +22,7 @@ Does this look right for LINK (root) 'Foot_V2' relative to 'world'?
 
 Does this look right for JOINT 'Foot_V2-STS3125_revolute' relative to 'Foot_V2'?
   Translated by: X: 0 Y: 0.5 Z: 0
-  Rotated by:   X: -0.0° Y: -0.0° Z: -0.0°
+  Rotated by:   X: 0.0° Y: -0.0° Z: 0.0°
 
 Does this look right for LINK 'STS3125' relative to 'Foot_V2'?
   Translated by: X: 0 Y: 0 Z: 0
@@ -77,6 +77,58 @@ Does this look right for JOINT 'Servo_Case_to_Grid-_x6_fixed' relative to 'Servo
   Rotated by:   X: 0.0° Y: 0.0° Z: 0.0°
 
 Does this look right for LINK '_x6' relative to 'Servo_Case_to_Grid'?
+  Translated by: X: 0 Y: 0 Z: 0
+  Rotated by:   X: 0.0° Y: 0.0° Z: 0.0°
+
+[JOINT ATTACHMENT TRANSFORM] Joint004 (parent to child):
+  (0, -1, 0, 0)
+  (0, 0, 1, 0)
+  (-1, 0, 0, 0)
+  (0, 0, 0, 1)
+
+[JOINT ALIGNMENT ROT-ONLY MATRIX] Joint004 (parent to child):
+  (0, -1, 0, 0)
+  (0, 0, 1, 0)
+  (-1, 0, 0, 0)
+  (0, 0, 0, 1)
+
+[FINAL JOINT PLACEMENT MATRIX] Joint004:
+  (1, 0, 0, -5)
+  (0, 1, 0, 26.5)
+  (0, 0, 1, 30.6205)
+  (0, 0, 0, 1)
+
+Does this look right for JOINT '_x6-Servo_Horn_to_Grid_fixed' relative to '_x6'?
+  Translated by: X: -5.000001 Y: 26.5 Z: 30.620499
+  Rotated by:   X: -0.0° Y: -0.0° Z: -0.0°
+
+Does this look right for LINK 'Servo_Horn_to_Grid' relative to '_x6'?
+  Translated by: X: 0 Y: 0 Z: 0
+  Rotated by:   X: 0.0° Y: 0.0° Z: 0.0°
+
+[JOINT ATTACHMENT TRANSFORM] Joint005 (parent to child):
+  (1, 0, 0, 0)
+  (0, 1, 0, 0)
+  (0, 0, 1, 0)
+  (0, 0, 0, 1)
+
+[JOINT ALIGNMENT ROT-ONLY MATRIX] Joint005 (parent to child):
+  (1, 0, 0, 0)
+  (0, 1, 0, 0)
+  (0, 0, 1, 0)
+  (0, 0, 0, 1)
+
+[FINAL JOINT PLACEMENT MATRIX] Joint005:
+  (1, 0, 0, 0)
+  (0, 1, 0, 40.5)
+  (0, 0, 1, 0)
+  (0, 0, 0, 1)
+
+Does this look right for JOINT 'Servo_Horn_to_Grid-STS3126_revolute' relative to 'Servo_Horn_to_Grid'?
+  Translated by: X: 0 Y: 40.5 Z: 0
+  Rotated by:   X: 0.0° Y: -0.0° Z: 0.0°
+
+Does this look right for LINK 'STS3126' relative to 'Servo_Horn_to_Grid'?
   Translated by: X: 0 Y: 0 Z: 0
   Rotated by:   X: 0.0° Y: 0.0° Z: 0.0°
 
