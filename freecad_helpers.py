@@ -97,12 +97,18 @@ def get_origin_alignment(from_placement, to_placement):
     return App.Placement(App.Vector(0, 0, 0), rotation_difference)
 
 
-def get_mesh_offset(parent_joint_placement, child_link_placement):
+def get_mesh_offset(parent_joint):
     """
     Compute the mesh offset placement for URDF export.
     This rotates the child link's frame to align with the parent joint's frame, then inverts for URDF mesh offset.
     Returns a FreeCAD.Placement.
     """
-    alignment = get_origin_alignment(parent_joint_placement, child_link_placement)
-    aligned_child = alignment.multiply(child_link_placement)
-    return aligned_child.inverse()
+    # how to get from joint to origin
+    # translate by inverse of parent_joint_to_child_link_origin
+    joint_to_child_origin = parent_joint.from_child_origin.inverse()
+    # how to rotate from joint origin to child origin to get coincident axes 
+    # align parent_joint_to_child_link_origin with parent_joint_to_parent_link_origin
+    alignment = get_origin_alignment(parent_joint.from_parent_origin, parent_joint.from_child_origin)
+    # compose by firstly rotating the frame to the correct orientation, then translating to the correct position
+    aligned_child = alignment.multiply(joint_to_child_origin) 
+    return aligned_child
