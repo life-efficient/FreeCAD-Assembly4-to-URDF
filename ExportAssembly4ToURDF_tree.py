@@ -266,7 +266,15 @@ class URDFLink:
         f.write(f'  </link>\n')
 
     def __str__(self):
-        return (f"URDFLink(name={self.name}, xyz={self.xyz}, rpy={self.rpy})")
+        def clean(val):
+            try:
+                fval = float(val)
+                return 0.0 if abs(fval) < 1e-8 else fval
+            except Exception:
+                return val
+        xyz_clean = ' '.join(str(clean(x)) for x in self.xyz.split())
+        rpy_clean = ' '.join(str(clean(x)) for x in self.rpy.split())
+        return (f"URDFLink(name={self.name}, xyz={xyz_clean}, rpy={rpy_clean})")
 
 class FreeCADJoint:
     def __init__(self, joint, link_name, child_link=None):
@@ -361,9 +369,17 @@ class URDFJoint:
 
     def __str__(self):
         # Only show transform info for debugging
+        def clean_placement_str(placement):
+            import re
+            s = str(placement)
+            # Replace numbers very close to zero with 0.0
+            def repl(match):
+                val = float(match.group(0))
+                return '0.0' if abs(val) < 1e-8 else str(val)
+            return re.sub(r'-?\d*\.\d+(?:e[+-]?\d+)?', repl, s)
         return (f"URDFJoint(name={self.name}, type={self.joint_type},\n"
                 f"          parent_link={self.parent_link}, child_link={self.child_link},\n"
-                f"          urdf_transform={self.urdf_transform})")
+                f"          urdf_transform={clean_placement_str(self.urdf_transform)})")
 
 # Update handle_joint to use new URDFJoint signature
 
