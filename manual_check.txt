@@ -1,27 +1,42 @@
 [DEBUG] Link names in links dict: Foot_V2, _x6, STS3125, Servo_Case_to_Grid, Servo_Horn_to_Grid, STS3126
 [DEBUG] Grounded joint found: GroundedJoint grounding Foot_V2
+[TREE BUILD] Link 'Foot_V2' found joint 'Joint' (type: Revolute) to 'STS3125'
+[TREE BUILD] Adding joint 'Joint' to link 'Foot_V2'
+[TREE BUILD] Setting child_link of joint 'Joint' to 'STS3125'
+[TREE BUILD] Link 'STS3125' found joint 'Joint' (type: Revolute) to 'Foot_V2'
+[TREE BUILD] Skipping already visited joint 'Joint'
+[TREE BUILD] Link 'STS3125' found joint 'Joint001' (type: Fixed) to 'Servo_Case_to_Grid'
+[TREE BUILD] Adding joint 'Joint001' to link 'STS3125'
+[TREE BUILD] Setting child_link of joint 'Joint001' to 'Servo_Case_to_Grid'
+[TREE BUILD] Link 'Servo_Case_to_Grid' found joint 'Joint001' (type: Fixed) to 'STS3125'
+[TREE BUILD] Skipping already visited joint 'Joint001'
+[TREE BUILD] Link 'Servo_Case_to_Grid' found joint 'Joint002' (type: Fixed) to '_x6'
+[TREE BUILD] Adding joint 'Joint002' to link 'Servo_Case_to_Grid'
+[TREE BUILD] Setting child_link of joint 'Joint002' to '_x6'
+[TREE BUILD] Link '_x6' found joint 'Joint002' (type: Fixed) to 'Servo_Case_to_Grid'
+[TREE BUILD] Skipping already visited joint 'Joint002'
+[TREE BUILD] Link '_x6' found joint 'Joint003' (type: Fixed) to 'Servo_Horn_to_Grid'
+[TREE BUILD] Adding joint 'Joint003' to link '_x6'
+[TREE BUILD] Setting child_link of joint 'Joint003' to 'Servo_Horn_to_Grid'
+[TREE BUILD] Link 'Servo_Horn_to_Grid' found joint 'Joint003' (type: Fixed) to '_x6'
+[TREE BUILD] Skipping already visited joint 'Joint003'
+[TREE BUILD] Link 'Servo_Horn_to_Grid' found joint 'Joint004' (type: Revolute) to 'STS3126'
+[TREE BUILD] Adding joint 'Joint004' to link 'Servo_Horn_to_Grid'
+[TREE BUILD] Setting child_link of joint 'Joint004' to 'STS3126'
+[TREE BUILD] Link 'STS3126' found joint 'Joint004' (type: Revolute) to 'Servo_Horn_to_Grid'
+[TREE BUILD] Skipping already visited joint 'Joint004'
 --- ASSEMBLY TREE ---
 └─ Link: Foot_V2
     └─ Joint: Joint (type: revolute) -> STS3125
         └─ Link: STS3125
-            ├─ Joint: Joint (type: revolute) -> Foot_V2
-            │   └─ [CYCLE] Foot_V2
             └─ Joint: Joint001 (type: fixed) -> Servo_Case_to_Grid
                 └─ Link: Servo_Case_to_Grid
-                    ├─ Joint: Joint001 (type: fixed) -> STS3125
-                    │   └─ [CYCLE] STS3125
                     └─ Joint: Joint002 (type: fixed) -> _x6
                         └─ Link: _x6
-                            ├─ Joint: Joint002 (type: fixed) -> Servo_Case_to_Grid
-                            │   └─ [CYCLE] Servo_Case_to_Grid
                             └─ Joint: Joint003 (type: fixed) -> Servo_Horn_to_Grid
                                 └─ Link: Servo_Horn_to_Grid
-                                    ├─ Joint: Joint003 (type: fixed) -> _x6
-                                    │   └─ [CYCLE] _x6
                                     └─ Joint: Joint004 (type: revolute) -> STS3126
                                         └─ Link: STS3126
-                                            └─ Joint: Joint004 (type: revolute) -> Servo_Horn_to_Grid
-                                                └─ [CYCLE] Servo_Horn_to_Grid
 
 [handle_link] Handling link: Foot_V2 (is_root=True, parent=world)
 
@@ -32,33 +47,12 @@ Does this look right for JOINT 'Foot_V2-STS3125_revolute' relative to 'Foot_V2'?
 
 [handle_link] Handling link: STS3125 (is_root=False, parent=Foot_V2)
 
-[handle_joint] Handling joint: Joint (type=revolute) parent=STS3125 child=Foot_V2
-Does this look right for JOINT 'STS3125-Foot_V2_revolute' relative to 'STS3125'?
-  Translated by: X: 0.000000 Y: 0.000000 Z: 0.000000
-  Rotated by:   X: 0.0° Y: 0.0° Z: 0.0°
-
-[handle_link] Handling link: Foot_V2 (is_root=False, parent=STS3125)
-
 [handle_joint] Handling joint: Joint001 (type=fixed) parent=STS3125 child=Servo_Case_to_Grid
 Does this look right for JOINT 'STS3125-Servo_Case_to_Grid_fixed' relative to 'STS3125'?
   Translated by: X: -0.000000 Y: -0.000000 Z: 34.500000
   Rotated by:   X: -90.0° Y: 0.0° Z: -90.0°
 
 [handle_link] Handling link: Servo_Case_to_Grid (is_root=False, parent=STS3125)
-
-[handle_joint] Handling joint: Joint001 (type=fixed) parent=Servo_Case_to_Grid child=STS3125
-Does this look right for JOINT 'Servo_Case_to_Grid-STS3125_fixed' relative to 'Servo_Case_to_Grid'?
-  Translated by: X: 0.000000 Y: 0.000000 Z: 0.000000
-  Rotated by:   X: 0.0° Y: -0.0° Z: 0.0°
-
-[handle_link] Handling link: STS3125 (is_root=False, parent=Servo_Case_to_Grid)
-
-[handle_joint] Handling joint: Joint (type=revolute) parent=STS3125 child=Foot_V2
-Does this look right for JOINT 'STS3125-Foot_V2_revolute' relative to 'STS3125'?
-  Translated by: X: 0.000000 Y: 34.500000 Z: 0.000000
-  Rotated by:   X: 0.0° Y: -90.0° Z: -270.0°
-
-[handle_link] Handling link: Foot_V2 (is_root=False, parent=STS3125)
 
 [handle_joint] Handling joint: Joint002 (type=fixed) parent=Servo_Case_to_Grid child=_x6
 Does this look right for JOINT 'Servo_Case_to_Grid-_x6_fixed' relative to 'Servo_Case_to_Grid'?
@@ -67,27 +61,6 @@ Does this look right for JOINT 'Servo_Case_to_Grid-_x6_fixed' relative to 'Servo
 
 [handle_link] Handling link: _x6 (is_root=False, parent=Servo_Case_to_Grid)
 
-[handle_joint] Handling joint: Joint002 (type=fixed) parent=_x6 child=Servo_Case_to_Grid
-Does this look right for JOINT '_x6-Servo_Case_to_Grid_fixed' relative to '_x6'?
-  Translated by: X: 0.000000 Y: 0.000000 Z: 0.000000
-  Rotated by:   X: 0.0° Y: 0.0° Z: 0.0°
-
-[handle_link] Handling link: Servo_Case_to_Grid (is_root=False, parent=_x6)
-
-[handle_joint] Handling joint: Joint001 (type=fixed) parent=Servo_Case_to_Grid child=STS3125
-Does this look right for JOINT 'Servo_Case_to_Grid-STS3125_fixed' relative to 'Servo_Case_to_Grid'?
-  Translated by: X: -50.000000 Y: -26.000000 Z: 30.000000
-  Rotated by:   X: 0.0° Y: 90.0° Z: -180.0°
-
-[handle_link] Handling link: STS3125 (is_root=False, parent=Servo_Case_to_Grid)
-
-[handle_joint] Handling joint: Joint (type=revolute) parent=STS3125 child=Foot_V2
-Does this look right for JOINT 'STS3125-Foot_V2_revolute' relative to 'STS3125'?
-  Translated by: X: 0.000000 Y: 34.500000 Z: 0.000000
-  Rotated by:   X: 0.0° Y: -90.0° Z: -270.0°
-
-[handle_link] Handling link: Foot_V2 (is_root=False, parent=STS3125)
-
 [handle_joint] Handling joint: Joint003 (type=fixed) parent=_x6 child=Servo_Horn_to_Grid
 Does this look right for JOINT '_x6-Servo_Horn_to_Grid_fixed' relative to '_x6'?
   Translated by: X: -17.620499 Y: -5.000001 Z: 37.500000
@@ -95,8 +68,10 @@ Does this look right for JOINT '_x6-Servo_Horn_to_Grid_fixed' relative to '_x6'?
 
 [handle_link] Handling link: Servo_Horn_to_Grid (is_root=False, parent=_x6)
 
-[handle_joint] Handling joint: Joint003 (type=fixed) parent=Servo_Horn_to_Grid child=_x6
-Does this look right for JOINT 'Servo_Horn_to_Grid-_x6_fixed' relative to 'Servo_Horn_to_Grid'?
-  Translated by: X: 0.000000 Y: 0.000000 Z: 0.000000
-  Rotated by:   X: 0.0° Y: 0.0° Z: 0.0°
+[handle_joint] Handling joint: Joint004 (type=revolute) parent=Servo_Horn_to_Grid child=STS3126
+Does this look right for JOINT 'Servo_Horn_to_Grid-STS3126_revolute' relative to 'Servo_Horn_to_Grid'?
+  Translated by: X: -5.000000 Y: 0.000000 Z: 24.000000
+  Rotated by:   X: 180.0° Y: -0.0° Z: -0.0°
+
+[handle_link] Handling link: STS3126 (is_root=False, parent=Servo_Horn_to_Grid)
 

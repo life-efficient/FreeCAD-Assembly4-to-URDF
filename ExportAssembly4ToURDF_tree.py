@@ -392,24 +392,38 @@ def build_assembly_tree(robot_parts, joint_objs):
     log_message(f"[DEBUG] Grounded joint found: {getattr(root_joint, 'Name', None)} grounding {root_link.name}")
     # 3. Recursively build the tree
     visited_links = set()
+    visited_joints = set()
     def build_tree(link):
         if link.name in visited_links:
             return
         visited_links.add(link.name)
         link.joints = []
         for joint_obj in joint_objs:
+
             ref1 = get_link_name_from_reference(getattr(joint_obj, 'Reference1', None))
             ref2 = get_link_name_from_reference(getattr(joint_obj, 'Reference2', None))
-            if link.name == ref1 or link.name == ref2:
-                # 4. Attach this joint to the link
+            # Only add the joint to the current link if the link is the parent/root in this recursion
+            if link.name == ref1:
+                other_link_name = ref2
+            elif link.name == ref2:
+                other_link_name = ref1
+            else:
+                continue
+            if other_link_name and other_link_name in links:
+                joint_name = getattr(joint_obj, 'Name', '<no name>')
+                joint_type = getattr(joint_obj, 'JointType', '<none>')
+                log_message(f"[TREE BUILD] Link '{link.name}' found joint '{joint_name}' (type: {joint_type}) to '{other_link_name}'")
                 joint = FreeCADJoint(joint_obj, link.name)
-                # 5. Find the OTHER link
-                other_link_name = ref2 if link.name == ref1 else ref1
-                if other_link_name and other_link_name in links:
-                    joint.child_link = links[other_link_name]
-                    link.joints.append(joint)
-                    # 6. Recurse
-                    build_tree(joint.child_link)
+                joint.child_link = links[other_link_name]
+                joint_id = id(joint_obj)
+                if joint_id in visited_joints:
+                    log_message(f"[TREE BUILD] Skipping already visited joint '{joint_name}'")
+                    continue
+                visited_joints.add(joint_id)
+                log_message(f"[TREE BUILD] Adding joint '{joint_name}' to link '{link.name}'")
+                log_message(f"[TREE BUILD] Setting child_link of joint '{joint_name}' to '{other_link_name}'")
+                link.joints.append(joint)
+                build_tree(joint.child_link)
     build_tree(root_link)
     return root_link, links, []
 
