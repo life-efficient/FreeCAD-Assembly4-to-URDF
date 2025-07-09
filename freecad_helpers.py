@@ -80,3 +80,24 @@ def get_joint_alignment(joint_placement1, joint_placement2):
     rotation_difference = difference.Rotation
     rotation_only_transform = App.Placement(App.Vector(0, 0, 0), rotation_difference)
     return rotation_only_transform
+
+
+def get_origin_alignment(from_placement, to_placement):
+    """
+    Compute the rotation-only alignment from 'from_placement' to 'to_placement'.
+    Returns a FreeCAD.Placement representing the rotation-only transform.
+    """
+    difference = from_placement.inverse().multiply(to_placement)
+    rotation_difference = difference.Rotation
+    return App.Placement(App.Vector(0, 0, 0), rotation_difference)
+
+
+def get_mesh_alignment(parent_joint_placement, child_link_placement):
+    """
+    Compute the mesh alignment placement for URDF export.
+    This rotates the child link's frame to align with the parent joint's frame, then inverts for URDF mesh offset.
+    Returns a FreeCAD.Placement.
+    """
+    alignment = get_origin_alignment(parent_joint_placement, child_link_placement)
+    aligned_child = alignment.multiply(child_link_placement)
+    return aligned_child.inverse()

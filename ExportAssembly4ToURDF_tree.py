@@ -2,7 +2,7 @@ import FreeCAD as App
 import os
 
 from utils_io import ensure_dir
-from freecad_helpers import export_mesh, get_inertial, get_link_name_from_reference
+from freecad_helpers import export_mesh, get_inertial, get_link_name_from_reference, get_origin_alignment, get_mesh_alignment
 from utils_math import format_vector, format_placement
 
 # --- Logging helpers ---
@@ -374,7 +374,7 @@ def create_urdf(f, link, parent_joint=None, is_root=False, parent_name=None, vis
         log_message(str(urdf_joint))
         urdf_joint.write(f, link.name, joint.child_link.name)
         # Recursively traverse the child link
-        traverse_link(f, joint.child_link, parent_joint=joint, is_root=False, parent_name=link.name, visited_links=visited_links.copy(), visited_joints=visited_joints_new)
+        create_urdf(f, joint.child_link, parent_joint=joint, is_root=False, parent_name=link.name, visited_links=visited_links.copy(), visited_joints=visited_joints_new)
     # Only mark the link as visited after all joints/children are processed
     visited_links.add(link.name)
 
