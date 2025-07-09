@@ -356,6 +356,9 @@ def create_urdf(f, link, parent_joint=None, is_root=False, parent_name=None, vis
     if link.name in visited_links:
         log_message(f'[CYCLE] Skipping already visited link: {link.name}')
         return
+    # Add a newline and log the link being processed
+    log_newline()
+    log_message(f'[PROCESSING LINK] {link.name}')
     # Print URDFLink state before writing
     urdf_link = URDFLink(link, is_root=is_root, parent_name=parent_name, parent_joint=parent_joint)
     log_message(str(urdf_link))
@@ -366,6 +369,9 @@ def create_urdf(f, link, parent_joint=None, is_root=False, parent_name=None, vis
             continue
         visited_joints_new = visited_joints.copy()
         visited_joints_new.add(joint_id)
+        # Add a newline and log the joint being processed
+        log_newline()
+        log_message(f'[PROCESSING JOINT] {getattr(joint, "name", "<no name>")}')
         # Create URDFJoint and print its state before writing
         urdf_joint = URDFJoint(parent_joint, joint, parent_link=link.name, child_link=joint.child_link.name)
         log_message(str(urdf_joint))

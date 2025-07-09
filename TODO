@@ -10,3 +10,4 @@ checklist
 - joint transforms are computed as inverse of previous joint parent placement @ child joint placement
 - mesh transforms apply joint alignment
 - ensure axis of rotation is correctly set
+- handle offsets

@@ -93,8 +93,24 @@ def get_origin_alignment(from_placement, to_placement):
     """
     difference = from_placement.inverse().multiply(to_placement)
     rotation_difference = difference.Rotation
-    log_message(f"[DEBUG] get_origin_alignment: from={from_placement}, to={to_placement}, axis={rotation_difference.Axis}, angle={rotation_difference.Angle}")
+    log_message(f"[DEBUG] get_origin_alignment: axis=({clean(rotation_difference.Axis.x)}, {clean(rotation_difference.Axis.y)}, {clean(rotation_difference.Axis.z)}), angle={clean(rotation_difference.Angle)}")
     return App.Placement(App.Vector(0, 0, 0), rotation_difference)
+
+
+def clean(val):
+    try:
+        fval = float(val)
+        return 0.0 if abs(fval) < 1e-8 else fval
+    except Exception:
+        return val
+
+def clean_placement(placement):
+    # Returns a string with negligible values set to 0.0 for readability
+    pos = placement.Base
+    rot = placement.Rotation
+    pos_str = f"({clean(pos.x)}, {clean(pos.y)}, {clean(pos.z)})"
+    rot_str = f"({clean(rot.Axis.x)}, {clean(rot.Axis.y)}, {clean(rot.Axis.z)}), angle={clean(rot.Angle)}"
+    return f"Placement [Pos={pos_str}, Axis/Angle={rot_str}]"
 
 
 def get_mesh_offset(parent_joint):
@@ -103,12 +119,13 @@ def get_mesh_offset(parent_joint):
     This rotates the child link's frame to align with the parent joint's frame, then inverts for URDF mesh offset.
     Returns a FreeCAD.Placement.
     """
-    # how to get from joint to origin
-    # translate by inverse of parent_joint_to_child_link_origin
-    joint_to_child_origin = parent_joint.from_child_origin.inverse()
-    # how to rotate from joint origin to child origin to get coincident axes 
-    # align parent_joint_to_child_link_origin with parent_joint_to_parent_link_origin
-    alignment = get_origin_alignment(parent_joint.from_parent_origin, parent_joint.from_child_origin)
-    # compose by firstly rotating the frame to the correct orientation, then translating to the correct position
-    aligned_child = alignment.multiply(joint_to_child_origin) 
+    from_parent_origin = parent_joint.from_parent_origin
+    from_child_origin = parent_joint.from_child_origin
+    log_message(f"[DEBUG][mesh_offset] from_parent_origin: Placement [Pos=({clean(from_parent_origin.Base.x)}, {clean(from_parent_origin.Base.y)}, {clean(from_parent_origin.Base.z)}), Axis/Angle=({clean(from_parent_origin.Rotation.Axis.x)}, {clean(from_parent_origin.Rotation.Axis.y)}, {clean(from_parent_origin.Rotation.Axis.z)}), angle={clean(from_parent_origin.Rotation.Angle)}]")
+    log_message(f"[DEBUG][mesh_offset] from_child_origin: Placement [Pos=({clean(from_child_origin.Base.x)}, {clean(from_child_origin.Base.y)}, {clean(from_child_origin.Base.z)}), Axis/Angle=({clean(from_child_origin.Rotation.Axis.x)}, {clean(from_child_origin.Rotation.Axis.y)}, {clean(from_child_origin.Rotation.Axis.z)}), angle={clean(from_child_origin.Rotation.Angle)}]")
+    joint_to_child_origin = from_child_origin.inverse()
+    alignment = get_origin_alignment(from_parent_origin, from_child_origin)
+    log_message(f"[DEBUG][mesh_offset] alignment: axis={clean(alignment.Rotation.Axis.x)}, {clean(alignment.Rotation.Axis.y)}, {clean(alignment.Rotation.Axis.z)}, angle={clean(alignment.Rotation.Angle)}")
+    aligned_child = alignment.multiply(joint_to_child_origin)
+    log_message(f"[DEBUG][mesh_offset] aligned_child: Placement [Pos=({clean(aligned_child.Base.x)}, {clean(aligned_child.Base.y)}, {clean(aligned_child.Base.z)}), Axis/Angle=({clean(aligned_child.Rotation.Axis.x)}, {clean(aligned_child.Rotation.Axis.y)}, {clean(aligned_child.Rotation.Axis.z)}), angle={clean(aligned_child.Rotation.Angle)}]")
     return aligned_child

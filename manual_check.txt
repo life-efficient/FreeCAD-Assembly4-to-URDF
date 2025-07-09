@@ -13,12 +13,16 @@
                                     └─ Joint: Joint004 (type: revolute) -> STS3126
                                         └─ Link: STS3126
 
+
+[PROCESSING LINK] Foot_V2
 root link - skipping alignment
 URDFLink(
   name=Foot_V2,
   xyz="0.0 0.0 0.0"
   rpy="0.0 0.0 0.0"
 )
+
+[PROCESSING JOINT] Joint
 [DEBUG] prev_joint is None - this joint must be attached to the root link
 URDFJoint(
   name=Foot_V2-STS3125_revolute,
@@ -27,14 +31,22 @@ URDFJoint(
   xyz="0.0 -18.5 0.0"
   rpy="0.0 0.0 -1.570796"
 )
+
+[PROCESSING LINK] STS3125
 [DEBUG] parent name: Foot_V2
-[DEBUG] get_origin_alignment: from=Placement [Pos=(0,-18.5,4.1e-15), Yaw-Pitch-Roll=(0,0,-90)], to=Placement [Pos=(2e-16,-19,-4.6e-15), Yaw-Pitch-Roll=(0,0,90)], axis=Vector (1.0, 0.0, 0.0), angle=3.141592653589793
+[DEBUG][mesh_offset] from_parent_origin: Placement [Pos=(0.0, -18.5, 0.0), Axis/Angle=(-1.0, 0.0, 0.0), angle=1.5707963267948968]
+[DEBUG][mesh_offset] from_child_origin: Placement [Pos=(0.0, -18.99999999999999, 0.0), Axis/Angle=(1.0, 0.0, 0.0), angle=1.5707963267948966]
+[DEBUG] get_origin_alignment: axis=(1.0, 0.0, 0.0), angle=3.141592653589793
+[DEBUG][mesh_offset] alignment: axis=1.0, 0.0, 0.0, angle=3.141592653589793
+[DEBUG][mesh_offset] aligned_child: Placement [Pos=(0.0, 0.0, 18.99999999999999), Axis/Angle=(1.0, 0.0, 0.0), angle=1.5707963267948968]
 URDFLink(
   name=STS3125,
   xyz="0.0 0.0 19.0"
   rpy="0.0 0.0 1.570796"
 )
-[DEBUG] get_origin_alignment: from=Placement [Pos=(2e-16,-19,-4.6e-15), Yaw-Pitch-Roll=(0,0,90)], to=Placement [Pos=(-1e-16,-16,35), Yaw-Pitch-Roll=(0,90,-180)], axis=Vector (-0.5773502691896258, 0.5773502691896257, 0.5773502691896258), angle=4.1887902047863905
+
+[PROCESSING JOINT] Joint001
+[DEBUG] get_origin_alignment: axis=(-0.5773502691896258, 0.5773502691896257, 0.5773502691896258), angle=4.1887902047863905
 URDFJoint(
   name=STS3125-Servo_Case_to_Grid_fixed,
   parent_link=STS3125,
@@ -42,14 +54,22 @@ URDFJoint(
   xyz="-35.0 -32.0 -19.0"
   rpy="0.0 1.570796 -6.283185"
 )
+
+[PROCESSING LINK] Servo_Case_to_Grid
 [DEBUG] parent name: STS3125
-[DEBUG] get_origin_alignment: from=Placement [Pos=(-1e-16,-16,35), Yaw-Pitch-Roll=(0,90,-180)], to=Placement [Pos=(-3.4e-15,16,0), Yaw-Pitch-Roll=(0,-90,180)], axis=Vector (8.659560562354932e-17, -1.0, 2.512060585808453e-33), angle=3.141592653589793
+[DEBUG][mesh_offset] from_parent_origin: Placement [Pos=(0.0, -16.000000000000007, 35.00000000000003), Axis/Angle=(-0.7071067811865476, 0.0, 0.7071067811865476), angle=3.141592653589793]
+[DEBUG][mesh_offset] from_child_origin: Placement [Pos=(0.0, 16.000000000000007, 0.0), Axis/Angle=(0.7071067811865476, 0.0, 0.7071067811865476), angle=3.141592653589793]
+[DEBUG] get_origin_alignment: axis=(0.0, -1.0, 0.0), angle=3.141592653589793
+[DEBUG][mesh_offset] alignment: axis=0.0, -1.0, 0.0, angle=3.141592653589793
+[DEBUG][mesh_offset] aligned_child: Placement [Pos=(0.0, 16.00000000000001, 0.0), Axis/Angle=(0.7071067811865476, 0.0, -0.7071067811865476), angle=3.141592653589793]
 URDFLink(
   name=Servo_Case_to_Grid,
   xyz="0.0 16.0 0.0"
   rpy="0.0 1.570796 3.141593"
 )
-[DEBUG] get_origin_alignment: from=Placement [Pos=(-3.4e-15,16,0), Yaw-Pitch-Roll=(0,-90,180)], to=Placement [Pos=(-5,16,-8), Yaw-Pitch-Roll=(0,-90,-270)], axis=Vector (1.0, 1.5700924586837747e-16, 1.4353998199084254e-16), angle=4.71238898038469
+
+[PROCESSING JOINT] Joint002
+[DEBUG] get_origin_alignment: axis=(1.0, 0.0, 0.0), angle=4.71238898038469
 URDFJoint(
   name=Servo_Case_to_Grid-_x6_fixed,
   parent_link=Servo_Case_to_Grid,
@@ -57,14 +77,22 @@ URDFJoint(
   xyz="-11.0 -26.0 -15.0"
   rpy="-1.570796 0.0 -1.570796"
 )
+
+[PROCESSING LINK] _x6
 [DEBUG] parent name: Servo_Case_to_Grid
-[DEBUG] get_origin_alignment: from=Placement [Pos=(-5,16,-8), Yaw-Pitch-Roll=(0,-90,-270)], to=Placement [Pos=(50,10,5), Yaw-Pitch-Roll=(0,0,0)], axis=Vector (0.5773502691896258, -0.5773502691896258, 0.5773502691896257), angle=4.188790204786391
+[DEBUG][mesh_offset] from_parent_origin: Placement [Pos=(-5.000000000000001, 16.000000000000007, -8.000000000000007), Axis/Angle=(-0.5773502691896258, 0.5773502691896258, -0.5773502691896257), angle=4.188790204786391]
+[DEBUG][mesh_offset] from_child_origin: Placement [Pos=(50.00000000000001, 10.000000000000009, 4.999999999999998), Axis/Angle=(0.0, 0.0, 1.0), angle=0.0]
+[DEBUG] get_origin_alignment: axis=(0.5773502691896258, -0.5773502691896258, 0.5773502691896257), angle=4.188790204786391
+[DEBUG][mesh_offset] alignment: axis=0.5773502691896258, -0.5773502691896258, 0.5773502691896257, angle=4.188790204786391
+[DEBUG][mesh_offset] aligned_child: Placement [Pos=(-5.000000000000014, 50.00000000000001, 10.000000000000025), Axis/Angle=(0.5773502691896258, -0.5773502691896258, 0.5773502691896257), angle=4.188790204786391]
 URDFLink(
   name=_x6,
   xyz="-5.0 50.0 10.0"
   rpy="-1.570796 0.0 -1.570796"
 )
-[DEBUG] get_origin_alignment: from=Placement [Pos=(50,10,5), Yaw-Pitch-Roll=(0,0,0)], to=Placement [Pos=(-5,5,-3.6e-15), Yaw-Pitch-Roll=(180,3.14128e-15,-90)], axis=Vector (-1e-16, -0.7071067811865476, 0.7071067811865476), angle=3.141592653589793
+
+[PROCESSING JOINT] Joint003
+[DEBUG] get_origin_alignment: axis=(0.0, -0.7071067811865476, 0.7071067811865476), angle=3.141592653589793
 URDFJoint(
   name=_x6-Servo_Horn_to_Grid_fixed,
   parent_link=_x6,
@@ -72,14 +100,22 @@ URDFJoint(
   xyz="-44.999999 -31.5 -35.620499"
   rpy="0.0 -1.570796 -3.141593"
 )
+
+[PROCESSING LINK] Servo_Horn_to_Grid
 [DEBUG] parent name: _x6
-[DEBUG] get_origin_alignment: from=Placement [Pos=(-5,5,-3.6e-15), Yaw-Pitch-Roll=(180,3.14128e-15,-90)], to=Placement [Pos=(5.49084e-07,-21.5,-25.6205), Yaw-Pitch-Roll=(0,-90,180)], axis=Vector (0.5773502691896258, -0.5773502691896258, -0.5773502691896257), angle=2.0943951023931953
+[DEBUG][mesh_offset] from_parent_origin: Placement [Pos=(-5.000000000000014, 4.999999999999999, 0.0), Axis/Angle=(0.0, -0.7071067811865476, 0.7071067811865476), angle=3.141592653589793]
+[DEBUG][mesh_offset] from_child_origin: Placement [Pos=(5.490843229e-07, -21.500000000000018, -25.620499351813336), Axis/Angle=(0.7071067811865476, 0.0, 0.7071067811865476), angle=3.141592653589793]
+[DEBUG] get_origin_alignment: axis=(0.5773502691896258, -0.5773502691896258, -0.5773502691896257), angle=2.0943951023931953
+[DEBUG][mesh_offset] alignment: axis=0.5773502691896258, -0.5773502691896258, -0.5773502691896257, angle=2.0943951023931953
+[DEBUG][mesh_offset] aligned_child: Placement [Pos=(5.490843295357647e-07, -25.62049935181335, -21.50000000000002), Axis/Angle=(0.0, 0.7071067811865475, -0.7071067811865476), angle=3.141592653589793]
 URDFLink(
   name=Servo_Horn_to_Grid,
   xyz="1e-06 -25.620499 -21.5"
   rpy="3.141593 0.0 -1.570796"
 )
-[DEBUG] get_origin_alignment: from=Placement [Pos=(5.49084e-07,-21.5,-25.6205), Yaw-Pitch-Roll=(0,-90,180)], to=Placement [Pos=(-1.8e-15,-18.5,0), Yaw-Pitch-Roll=(0,0,-90)], axis=Vector (-0.5773502691896257, 0.5773502691896258, -0.5773502691896257), angle=4.188790204786391
+
+[PROCESSING JOINT] Joint004
+[DEBUG] get_origin_alignment: axis=(-0.5773502691896257, 0.5773502691896258, -0.5773502691896257), angle=4.188790204786391
 URDFJoint(
   name=Servo_Horn_to_Grid-STS3126_revolute,
   parent_link=Servo_Horn_to_Grid,
@@ -87,8 +123,14 @@ URDFJoint(
   xyz="25.620499 -2.5 18.499999"
   rpy="0.0 0.0 -1.570796"
 )
+
+[PROCESSING LINK] STS3126
 [DEBUG] parent name: Servo_Horn_to_Grid
-[DEBUG] get_origin_alignment: from=Placement [Pos=(-1.8e-15,-18.5,0), Yaw-Pitch-Roll=(0,0,-90)], to=Placement [Pos=(-3.6e-15,-19,-2.84e-14), Yaw-Pitch-Roll=(0,-0,90)], axis=Vector (1.0, -0.0, 0.0), angle=3.141592653589793
+[DEBUG][mesh_offset] from_parent_origin: Placement [Pos=(0.0, -18.499999999999996, 0.0), Axis/Angle=(-1.0, 0.0, 0.0), angle=1.5707963267948968]
+[DEBUG][mesh_offset] from_child_origin: Placement [Pos=(0.0, -18.99999999999999, 0.0), Axis/Angle=(1.0, 0.0, 0.0), angle=1.5707963267948966]
+[DEBUG] get_origin_alignment: axis=(1.0, 0.0, 0.0), angle=3.141592653589793
+[DEBUG][mesh_offset] alignment: axis=1.0, 0.0, 0.0, angle=3.141592653589793
+[DEBUG][mesh_offset] aligned_child: Placement [Pos=(0.0, 0.0, 18.99999999999999), Axis/Angle=(1.0, 0.0, 0.0), angle=1.5707963267948968]
 URDFLink(
   name=STS3126,
   xyz="0.0 0.0 19.0"

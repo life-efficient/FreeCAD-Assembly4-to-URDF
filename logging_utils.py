@@ -6,7 +6,7 @@ def log_message(msg):
     try:
         with open(MANUAL_CHECK_FILE, 'r', encoding='utf-8') as f:
             line_count = sum(1 for _ in f)
-        assert line_count < 100, f"manual_check.txt exceeds 100 lines ({line_count}) -- possible infinite loop!"
+        assert line_count < 500, f"manual_check.txt exceeds 500 lines ({line_count}) -- possible infinite loop!"
     except FileNotFoundError:
         pass
     print(msg)
