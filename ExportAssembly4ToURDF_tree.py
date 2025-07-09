@@ -379,7 +379,7 @@ def create_urdf(f, link, parent_joint=None, is_root=False, parent_name=None, vis
     visited_links.add(link.name)
 
 # --- Replace old traversal in assemblyToURDF_tree ---
-def assemblyToURDF_tree():
+def convert_assembly_to_urdf():
     print('running (assembly tree traversal)' + '\n'*5)
     ensure_dir(EXPORT_DIR)
     ensure_dir(os.path.join(EXPORT_DIR, "meshes"))
@@ -421,4 +421,4 @@ def assemblyToURDF_tree():
     print(f"\nExport complete!\nURDF exported to: {urdf_file}")
 
 def main():
-    assemblyToURDF_tree() 
+    convert_assembly_to_urdf() 
