@@ -33,24 +33,27 @@ def log_newline():
 # --- Assembly tree printer ---
 def print_assembly_tree(root_link):
     log_message('--- ASSEMBLY TREE ---')
-    def print_link(link, depth=0, visited=None):
+    def print_link(link, prefix='', is_last=True, visited=None):
         if visited is None:
             visited = set()
         if link.name in visited:
-            log_message('  ' * depth + f'[CYCLE] {link.name}')
+            log_message(f'{prefix}{"└─ " if is_last else "├─ "}[CYCLE] {link.name}')
             return
-        log_message('  ' * depth + f'Link: {link.name}')
+        log_message(f'{prefix}{"└─ " if is_last else "├─ "}Link: {link.name}')
         visited.add(link.name)
-        print(link.joints)
-        for joint in link.joints:
+        joints = link.joints
+        for idx, joint in enumerate(joints):
+            joint_is_last = (idx == len(joints) - 1)
+            joint_prefix = prefix + ('    ' if is_last else '│   ')
             joint_name = getattr(joint, 'name', '<no name>')
             joint_type = getattr(joint, 'joint_type', '<none>')
             child_link = joint.child_link
             child_link_name = child_link.name if child_link else '<no child>'
-            log_message('  ' * (depth + 1) + f'Joint: {joint_name} (type: {joint_type}) -> {child_link_name}')
+            log_message(f'{joint_prefix}{"└─ " if joint_is_last else "├─ "}Joint: {joint_name} (type: {joint_type}) -> {child_link_name}')
             if child_link:
-                print_link(child_link, depth + 2, visited.copy())
-    print_link(root_link)
+                next_prefix = joint_prefix + ('    ' if joint_is_last else '│   ')
+                print_link(child_link, next_prefix, True, visited.copy())
+    print_link(root_link, '', True)
     log_newline()
 
 DOC = App.ActiveDocument
@@ -119,14 +122,14 @@ def write_link(f, part, mesh_offset_placement=None, is_root=False, joint_name=No
     if is_root or mesh_offset_placement is None:
         xyz, rpy = "0 0 0", "0 0 0"
         if MANUAL_CHECK:
-            msg = f"Does this look right for LINK (root) '{name}' relative to '{parent_name or 'world'}'?\n  Translated by: X: 0 Y: 0 Z: 0\n  Rotated by:   X: 0.0° Y: 0.0° Z: 0.0°"
-            log_message(msg)
+            # msg = f"Does this look right for LINK (root) '{name}' relative to '{parent_name or 'world'}'?\n  Translated by: X: 0 Y: 0 Z: 0\n  Rotated by:   X: 0.0° Y: 0.0° Z: 0.0°"
+            # log_message(msg)
             log_newline()
     else:
         xyz, rpy = format_placement(mesh_offset_placement.inverse(), scale=SCALE)
         if MANUAL_CHECK:
-            msg = f"Does this look right for LINK '{name}' relative to '{parent_name}'?\n  Translated by: X: {xyz.split()[0]} Y: {xyz.split()[1]} Z: {xyz.split()[2]}\n  Rotated by:   X: {math.degrees(float(rpy.split()[0])):.1f}° Y: {math.degrees(float(rpy.split()[1])):.1f}° Z: {math.degrees(float(rpy.split()[2])):.1f}°"
-            log_message(msg)
+            # msg = f"Does this look right for LINK '{name}' relative to '{parent_name}'?\n  Translated by: X: {xyz.split()[0]} Y: {xyz.split()[1]} Z: {xyz.split()[2]}\n  Rotated by:   X: {math.degrees(float(rpy.split()[0])):.1f}° Y: {math.degrees(float(rpy.split()[1])):.1f}° Z: {math.degrees(float(rpy.split()[2])):.1f}°"
+            # log_message(msg)
             log_newline()
     f.write(f'  <link name="{name}">\n')
     f.write(f'    <inertial>\n')
@@ -180,69 +183,6 @@ def find_joints_group(assembly):
             if "Joints" in obj.Name:
                 return obj
     return None
-
-def build_tree(joint_objs):
-    parent_to_joints = {}
-    child_to_joint = {}
-    for joint in joint_objs:
-        log_message(joint.Name)
-        reference1 = getattr(joint, "Reference1", None)
-        reference2 = getattr(joint, "Reference2", None)
-        parent = get_link_name_from_reference(reference1)
-        child = get_link_name_from_reference(reference2)
-        if parent and child:
-            if parent not in parent_to_joints:
-                parent_to_joints[parent] = []
-            parent_to_joints[parent].append((joint, child))
-            child_to_joint[child] = joint
-        # Special case: grounded joint
-        if reference1 is None and reference2 is None:
-            obj_to_ground = getattr(joint, "ObjectToGround", None)
-            if obj_to_ground and hasattr(obj_to_ground, "Name") and obj_to_ground.Name in links:
-                grounded_links.append(links[obj_to_ground.Name])
-                child_to_joint[obj_to_ground.Name] = joint
-    return parent_to_joints, child_to_joint
-
-def find_root_link(joint_objs):
-    from freecad_helpers import get_link_name_from_reference
-    for joint in joint_objs:
-        # Detect grounded joint by missing references or name
-        is_grounded = (
-            (getattr(joint, "Reference1", None) is None and getattr(joint, "Reference2", None) is None)
-            or getattr(joint, "Name", "").lower() == "groundedjoint"
-        )
-        if is_grounded:
-            obj_to_ground = getattr(joint, "ObjectToGround", None)
-            if obj_to_ground and hasattr(obj_to_ground, "Name"):
-                return obj_to_ground.Name
-            reference2 = getattr(joint, "Reference2", None)
-            child = get_link_name_from_reference(reference2)
-            if child:
-                return child
-    return None
-
-def build_link_to_joints(joint_objs):
-    from freecad_helpers import get_link_name_from_reference
-    link_to_joints = {}
-    for joint in joint_objs:
-        reference1 = getattr(joint, "Reference1", None)
-        reference2 = getattr(joint, "Reference2", None)
-        link1 = get_link_name_from_reference(reference1)
-        link2 = get_link_name_from_reference(reference2)
-        for link in [link1, link2]:
-            if link:
-                if link not in link_to_joints:
-                    link_to_joints[link] = []
-                link_to_joints[link].append(joint)
-        # Special case: grounded joint
-        if getattr(joint, "Reference1", None) is None and getattr(joint, "Reference2", None) is None:
-            obj_to_ground = getattr(joint, "ObjectToGround", None)
-            if obj_to_ground and hasattr(obj_to_ground, "Name"):
-                link = obj_to_ground.Name
-                if link not in link_to_joints:
-                    link_to_joints[link] = []
-                link_to_joints[link].append(joint)
-    return link_to_joints
 
 # --- New helper functions ---
 def compute_joint_transform(parent_placement, child_placement):
@@ -310,8 +250,8 @@ def handle_link(f, freecad_link, prev_joint=None, is_root=False, joint_name=None
         mesh_offset = prev_joint.parent_placement.inverse()
     urdf_link = URDFLink(freecad_link, mesh_offset, is_root=is_root, parent_name=parent_name)
     if MANUAL_CHECK:
-        msg = f"Does this look right for LINK (root) '{urdf_link.name}' relative to '{urdf_link.parent_name or 'world'}'?\n  Translated by: X: {urdf_link.xyz.split()[0]} Y: {urdf_link.xyz.split()[1]} Z: {urdf_link.xyz.split()[2]}\n  Rotated by:   X: {math.degrees(float(urdf_link.rpy.split()[0])):.1f}° Y: {math.degrees(float(urdf_link.rpy.split()[1])):.1f}° Z: {math.degrees(float(urdf_link.rpy.split()[2])):.1f}°"
-        log_message(msg)
+        # msg = f"Does this look right for LINK (root) '{urdf_link.name}' relative to '{urdf_link.parent_name or 'world'}'?\n  Translated by: X: {urdf_link.xyz.split()[0]} Y: {urdf_link.xyz.split()[1]} Z: {urdf_link.xyz.split()[2]}\n  Rotated by:   X: {math.degrees(float(urdf_link.rpy.split()[0])):.1f}° Y: {math.degrees(float(urdf_link.rpy.split()[1])):.1f}° Z: {math.degrees(float(urdf_link.rpy.split()[2])):.1f}°"
+        # log_message(msg)
         log_newline()
     f.write(f'  <link name="{urdf_link.name}">\n')
     f.write(f'    <inertial>\n')
