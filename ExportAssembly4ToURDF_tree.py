@@ -5,7 +5,7 @@ import os
 import math
 
 from utils_io import ensure_dir
-from freecad_helpers import get_link_name_from_reference, export_mesh, get_inertial, get_joint_urdf_transform, get_joint_axis_in_urdf_frame, get_joint_alignment
+from freecad_helpers import get_link_name_from_reference
 from utils_math import format_vector, format_placement
 
 # --- Logging helpers ---
@@ -177,12 +177,12 @@ MANUAL_CHECK = True  # Set to True to print human-readable transform checks
 #     f.write(f'    <limit lower="{lower}" upper="{upper}" effort="{effort}" velocity="{velocity}"/>\n')
 #     f.write('  </joint>\n')
 
-# def find_joints_group(assembly):
-#     for obj in assembly.Group:
-#         if obj.TypeId == "Assembly::JointGroup":
-#             if "Joints" in obj.Name:
-#                 return obj
-#     return None
+def find_joints_group(assembly):
+    for obj in assembly.Group:
+        if obj.TypeId == "Assembly::JointGroup":
+            if "Joints" in obj.Name:
+                return obj
+    return None
 
 # --- New helper functions ---
 def compute_joint_transform(parent_placement, child_placement):
@@ -197,7 +197,6 @@ def compute_mesh_offset(child_placement):
 def get_joint_placements(joint, link_name):
     reference1 = getattr(joint, "Reference1", None)
     reference2 = getattr(joint, "Reference2", None)
-    from freecad_helpers import get_link_name_from_reference
     link1 = get_link_name_from_reference(reference1)
     link2 = get_link_name_from_reference(reference2)
     if link1 == link_name:
@@ -286,7 +285,6 @@ class FreeCADJoint:
         self.link_name = link_name
         reference1 = getattr(joint, "Reference1", None)
         reference2 = getattr(joint, "Reference2", None)
-        from freecad_helpers import get_link_name_from_reference
         link1 = get_link_name_from_reference(reference1)
         link2 = get_link_name_from_reference(reference2)
         if link1 == link_name:
@@ -398,37 +396,37 @@ class URDFJoint:
 
 # Update handle_joint to use new URDFJoint signature
 
-def handle_joint(f, prev_joint, curr_joint, parent_link, child_link):
-    from utils_math import format_placement
-    log_message(f"[handle_joint] Handling joint: {getattr(curr_joint, 'name', '<no name>')} (type={getattr(curr_joint, 'joint_type', '<none>')}) parent={parent_link} child={child_link}")
-    joint_type = curr_joint.joint_type
-    def sanitize(name):
-        return str(name).replace(' ', '_').replace('-', '_') if name else 'none'
-    if getattr(curr_joint, "reference1", None) is None and getattr(curr_joint, "reference2", None) is None:
-        semantic_name = "grounded_joint"
-        parent = "world"
-        child = child_link
-    else:
-        parent = parent_link
-        child = child_link
-        semantic_name = f"{sanitize(parent)}-{sanitize(child)}_{joint_type}"
-    # Compute URDF joint transform
-    urdf_joint = URDFJoint(prev_joint, curr_joint)
-    joint_xyz, joint_rpy = format_placement(urdf_joint.urdf_transform, scale=SCALE)
-    axis_vec = urdf_joint.axis
-    if parent_link != parent and axis_vec is not None:
-        import FreeCAD as App
-        axis_vec = App.Vector(-axis_vec.x, -axis_vec.y, -axis_vec.z)
-    if MANUAL_CHECK:
-        msg = f"Does this look right for JOINT '{semantic_name}' relative to '{parent}'?\n  Translated by: X: {joint_xyz.split()[0]} Y: {joint_xyz.split()[1]} Z: {joint_xyz.split()[2]}\n  Rotated by:   X: {math.degrees(float(joint_rpy.split()[0])):.1f}° Y: {math.degrees(float(joint_rpy.split()[1])):.1f}° Z: {math.degrees(float(joint_rpy.split()[2])):.1f}°"
-        log_message(msg)
-        log_newline()
-    if joint_type == "fixed":
-        writeFixedJoint(f, curr_joint.joint, semantic_name, parent, child, joint_xyz, joint_rpy)
-    elif joint_type == "revolute":
-        writeRevoluteJoint(f, curr_joint.joint, semantic_name, parent, child, joint_xyz, joint_rpy, axis_vec)
-    else:
-        raise RuntimeError(f"ERROR: Unsupported joint type: {joint_type}")
+# def handle_joint(f, prev_joint, curr_joint, parent_link, child_link):
+#     from utils_math import format_placement
+#     log_message(f"[handle_joint] Handling joint: {getattr(curr_joint, 'name', '<no name>')} (type={getattr(curr_joint, 'joint_type', '<none>')}) parent={parent_link} child={child_link}")
+#     joint_type = curr_joint.joint_type
+#     def sanitize(name):
+#         return str(name).replace(' ', '_').replace('-', '_') if name else 'none'
+#     if getattr(curr_joint, "reference1", None) is None and getattr(curr_joint, "reference2", None) is None:
+#         semantic_name = "grounded_joint"
+#         parent = "world"
+#         child = child_link
+#     else:
+#         parent = parent_link
+#         child = child_link
+#         semantic_name = f"{sanitize(parent)}-{sanitize(child)}_{joint_type}"
+#     # Compute URDF joint transform
+#     urdf_joint = URDFJoint(prev_joint, curr_joint)
+#     joint_xyz, joint_rpy = format_placement(urdf_joint.urdf_transform, scale=SCALE)
+#     axis_vec = urdf_joint.axis
+#     if parent_link != parent and axis_vec is not None:
+#         import FreeCAD as App
+#         axis_vec = App.Vector(-axis_vec.x, -axis_vec.y, -axis_vec.z)
+#     if MANUAL_CHECK:
+#         msg = f"Does this look right for JOINT '{semantic_name}' relative to '{parent}'?\n  Translated by: X: {joint_xyz.split()[0]} Y: {joint_xyz.split()[1]} Z: {joint_xyz.split()[2]}\n  Rotated by:   X: {math.degrees(float(joint_rpy.split()[0])):.1f}° Y: {math.degrees(float(joint_rpy.split()[1])):.1f}° Z: {math.degrees(float(joint_rpy.split()[2])):.1f}°"
+#         log_message(msg)
+#         log_newline()
+#     if joint_type == "fixed":
+#         writeFixedJoint(f, curr_joint.joint, semantic_name, parent, child, joint_xyz, joint_rpy)
+#     elif joint_type == "revolute":
+#         writeRevoluteJoint(f, curr_joint.joint, semantic_name, parent, child, joint_xyz, joint_rpy, axis_vec)
+#     else:
+#         raise RuntimeError(f"ERROR: Unsupported joint type: {joint_type}")
 
 # --- New object graph initialization and traversal ---
 def find_grounded_joint_and_link(joint_objs, links):
