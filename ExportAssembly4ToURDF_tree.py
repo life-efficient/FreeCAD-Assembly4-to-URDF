@@ -106,9 +106,10 @@ class URDFLink:
             self.xyz, self.rpy = "0 0 0", "0 0 0"
         else:
             assert parent_joint is not None, f"Non-root link {self.name} requires a parent_joint for alignment"
-            assert hasattr(parent_joint, 'parent_placement') and parent_joint.parent_placement is not None, f"parent_joint for {self.name} missing parent_placement"
-            assert hasattr(parent_joint, 'child_placement') and parent_joint.child_placement is not None, f"parent_joint for {self.name} missing child_placement"
-            mesh_offset = get_mesh_offset(parent_joint.parent_placement, parent_joint.child_placement)
+            assert hasattr(parent_joint, 'from_parent_origin') and parent_joint.from_parent_origin is not None, f"parent_joint for {self.name} missing from_parent_origin"
+            assert hasattr(parent_joint, 'from_child_origin') and parent_joint.from_child_origin is not None, f"parent_joint for {self.name} missing from_child_origin"
+            log_message(f"[DEBUG] parent name: {parent_name}")
+            mesh_offset = get_mesh_offset(parent_joint)
             self.xyz, self.rpy = format_placement(mesh_offset, scale=SCALE)
 
     def write(self, f):
@@ -159,13 +160,11 @@ class FreeCADJoint:
         link1 = get_link_name_from_reference(reference1)
         link2 = get_link_name_from_reference(reference2)
         if link1 == link_name:
-            self.parent_placement = getattr(joint, "Placement1", None)
-            self.child_placement = getattr(joint, "Placement2", None)
+            self.from_parent_origin = getattr(joint, "Placement1", None)
+            self.from_child_origin = getattr(joint, "Placement2", None)
         else:
-            self.parent_placement = getattr(joint, "Placement2", None)
-            self.child_placement = getattr(joint, "Placement1", None)
-        self.from_parent_origin = self.parent_placement
-        self.from_child_origin = self.child_placement
+            self.from_parent_origin = getattr(joint, "Placement2", None)
+            self.from_child_origin = getattr(joint, "Placement1", None)
         self.joint_type = getattr(joint, "JointType", "revolute").lower()
         self.name = getattr(joint, "Name", None)
         self.reference1 = reference1
