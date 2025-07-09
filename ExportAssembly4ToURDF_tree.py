@@ -240,41 +240,30 @@ class URDFLink:
         else:
             self.xyz, self.rpy = format_placement(mesh_offset, scale=SCALE)
 
-# Refactor handle_link to use FreeCADLink and URDFLink
-
-def handle_link(f, freecad_link, prev_joint=None, is_root=False, joint_name=None, parent_name=None):
-    log_message(f"[handle_link] Handling link: {freecad_link.name} (is_root={is_root}, parent={parent_name})")
-    if is_root or prev_joint is None or not hasattr(prev_joint, 'parent_placement') or prev_joint.parent_placement is None:
-        mesh_offset = None
-    else:
-        mesh_offset = prev_joint.parent_placement.inverse()
-    urdf_link = URDFLink(freecad_link, mesh_offset, is_root=is_root, parent_name=parent_name)
-    if MANUAL_CHECK:
-        # msg = f"Does this look right for LINK (root) '{urdf_link.name}' relative to '{urdf_link.parent_name or 'world'}'?\n  Translated by: X: {urdf_link.xyz.split()[0]} Y: {urdf_link.xyz.split()[1]} Z: {urdf_link.xyz.split()[2]}\n  Rotated by:   X: {math.degrees(float(urdf_link.rpy.split()[0])):.1f}° Y: {math.degrees(float(urdf_link.rpy.split()[1])):.1f}° Z: {math.degrees(float(urdf_link.rpy.split()[2])):.1f}°"
-        # log_message(msg)
-        log_newline()
-    f.write(f'  <link name="{urdf_link.name}">\n')
-    f.write(f'    <inertial>\n')
-    f.write(f'      <origin xyz="{format_vector(urdf_link.inertial["com"])}" rpy="0 0 0"/>\n')
-    f.write(f'      <mass value="{urdf_link.inertial["mass"]:.6f}"/>\n')
-    f.write(f'      <inertia ')
-    for k, v in urdf_link.inertial["inertia"].items():
-        f.write(f'{k}="{v:.6f}" ')
-    f.write('/>\n')
-    f.write(f'    </inertial>\n')
-    f.write(f'    <visual>\n')
-    f.write(f'      <origin xyz="{urdf_link.xyz}" rpy="{urdf_link.rpy}"/>\n')
-    f.write(f'      <geometry>\n')
-    f.write(f'        <mesh filename="{urdf_link.mesh_path}"/>\n')
-    f.write(f'      </geometry>\n')
-    f.write(f'    </visual>\n')
-    f.write(f'    <collision>\n')
-    f.write(f'      <origin xyz="{urdf_link.xyz}" rpy="{urdf_link.rpy}"/>\n')
-    f.write(f'      <geometry>\n')
-    f.write(f'        <mesh filename="{urdf_link.mesh_path}"/>\n')
-    f.write(f'      </geometry>\n')
-    f.write(f'    </collision>\n')
-    f.write(f'  </link>\n')
+    def write(self, f):
+        from utils_math import format_vector
+        f.write(f'  <link name="{self.name}">\n')
+        f.write(f'    <inertial>\n')
+        f.write(f'      <origin xyz="{format_vector(self.inertial["com"])}" rpy="0 0 0"/>\n')
+        f.write(f'      <mass value="{self.inertial["mass"]:.6f}"/>\n')
+        f.write(f'      <inertia ')
+        for k, v in self.inertial["inertia"].items():
+            f.write(f'{k}="{v:.6f}" ')
+        f.write('/>\n')
+        f.write(f'    </inertial>\n')
+        f.write(f'    <visual>\n')
+        f.write(f'      <origin xyz="{self.xyz}" rpy="{self.rpy}"/>\n')
+        f.write(f'      <geometry>\n')
+        f.write(f'        <mesh filename="{self.mesh_path}"/>\n')
+        f.write(f'      </geometry>\n')
+        f.write(f'    </visual>\n')
+        f.write(f'    <collision>\n')
+        f.write(f'      <origin xyz="{self.xyz}" rpy="{self.rpy}"/>\n')
+        f.write(f'      <geometry>\n')
+        f.write(f'        <mesh filename="{self.mesh_path}"/>\n')
+        f.write(f'      </geometry>\n')
+        f.write(f'    </collision>\n')
+        f.write(f'  </link>\n')
 
 class FreeCADJoint:
     def __init__(self, joint, link_name, child_link=None):
@@ -315,6 +304,57 @@ class URDFJoint:
             self.axis = curr_joint.from_child_origin.Rotation.multVec(App.Vector(0,0,1))
         else:
             self.axis = None
+        self.parent_link = None  # to be set when writing
+        self.child_link = None   # to be set when writing
+
+    def write(self, f, parent_link, child_link):
+        from utils_math import format_placement
+        import math
+        def sanitize(name):
+            return str(name).replace(' ', '_').replace('-', '_') if name else 'none'
+        joint_type = self.joint_type
+        if getattr(self.freecad_joint, "reference1", None) is None and getattr(self.freecad_joint, "reference2", None) is None:
+            semantic_name = "grounded_joint"
+            parent = "world"
+            child = child_link
+        else:
+            parent = parent_link
+            child = child_link
+            semantic_name = f"{sanitize(parent)}-{sanitize(child)}_{joint_type}"
+        joint_xyz, joint_rpy = format_placement(self.urdf_transform, scale=SCALE)
+        axis_vec = self.axis
+        if parent_link != parent and axis_vec is not None:
+            import FreeCAD as App
+            axis_vec = App.Vector(-axis_vec.x, -axis_vec.y, -axis_vec.z)
+        if joint_type == "fixed":
+            self._write_fixed(f, semantic_name, parent, child, joint_xyz, joint_rpy)
+        elif joint_type == "revolute":
+            self._write_revolute(f, semantic_name, parent, child, joint_xyz, joint_rpy, axis_vec)
+        else:
+            raise RuntimeError(f"ERROR: Unsupported joint type: {joint_type}")
+
+    def _write_fixed(self, f, semantic_name, parent, child, joint_xyz, joint_rpy):
+        f.write(f'  <joint name="{semantic_name}" type="fixed">\n')
+        f.write(f'    <parent link="{parent}"/>\n')
+        f.write(f'    <child link="{child}"/>\n')
+        f.write(f'    <origin xyz="{joint_xyz}" rpy="{joint_rpy}"/>\n')
+        f.write('  </joint>\n')
+
+    def _write_revolute(self, f, semantic_name, parent, child, joint_xyz, joint_rpy, axis_vec):
+        f.write(f'  <joint name="{semantic_name}" type="revolute">\n')
+        f.write(f'    <parent link="{parent}"/>\n')
+        f.write(f'    <child link="{child}"/>\n')
+        f.write(f'    <origin xyz="{joint_xyz}" rpy="{joint_rpy}"/>\n')
+        if axis_vec is not None:
+            f.write(f'    <axis xyz="{axis_vec.x} {axis_vec.y} {axis_vec.z}"/>\n')
+        else:
+            f.write('    <axis xyz="0 0 1"/>\n')
+        lower = getattr(self.freecad_joint.joint, "LowerLimit", -3.14)
+        upper = getattr(self.freecad_joint.joint, "UpperLimit", 3.14)
+        effort = getattr(self.freecad_joint.joint, "Effort", 1)
+        velocity = getattr(self.freecad_joint.joint, "Velocity", 1)
+        f.write(f'    <limit lower="{lower}" upper="{upper}" effort="{effort}" velocity="{velocity}"/>\n')
+        f.write('  </joint>\n')
 
 # Update handle_joint to use new URDFJoint signature
 
