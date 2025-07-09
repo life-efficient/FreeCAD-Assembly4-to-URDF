@@ -1,16 +1,25 @@
---- OBJECT GRAPH (tree) ---
+[DEBUG] Link names in links dict: Foot_V2, _x6, STS3125, Servo_Case_to_Grid, Servo_Horn_to_Grid, STS3126
+[DEBUG] Joint GroundedJoint: Reference1=None, Reference2=None [parent_name 'None' NOT FOUND] [child_name 'None' NOT FOUND]
+[DEBUG] Joint Joint: Reference1=STS3125, Reference2=Foot_V2 [BOTH FOUND]
+[DEBUG] Joint Joint001: Reference1=Servo_Case_to_Grid, Reference2=STS3125 [BOTH FOUND]
+[DEBUG] Joint Joint002: Reference1=_x6, Reference2=Servo_Case_to_Grid [BOTH FOUND]
+[DEBUG] Joint Joint003: Reference1=Servo_Horn_to_Grid, Reference2=_x6 [BOTH FOUND]
+[DEBUG] Joint Joint004: Reference1=STS3126, Reference2=Servo_Horn_to_Grid [BOTH FOUND]
+[DEBUG] Grounded joint found: GroundedJoint grounding Foot_V2
+--- ASSEMBLY TREE ---
 └─ Foot_V2
     └─ Joint: Joint (type: revolute)
         └─ STS3125
-            └─ Joint: Joint005 (type: fixed)
+            └─ Joint: Joint001 (type: fixed)
                 └─ Servo_Case_to_Grid
-                    └─ Joint: Joint006 (type: fixed)
-                        └─ _x007
+                    └─ Joint: Joint002 (type: fixed)
+                        └─ _x6
                             └─ Joint: Joint003 (type: fixed)
                                 └─ Servo_Horn_to_Grid
-                                    └─ Joint: Joint007 (type: revolute)
+                                    └─ Joint: Joint004 (type: revolute)
                                         └─ STS3126
 
+[handle_link] Handling link: Body010 (is_root=True, parent=world)
 Does this look right for LINK (root) 'Body010' relative to 'world'?
   Translated by: X: 0 Y: 0 Z: 0
   Rotated by:   X: 0.0° Y: 0.0° Z: 0.0°
