@@ -274,7 +274,11 @@ class URDFLink:
                 return val
         xyz_clean = ' '.join(str(clean(x)) for x in self.xyz.split())
         rpy_clean = ' '.join(str(clean(x)) for x in self.rpy.split())
-        return (f"URDFLink(name={self.name}, xyz={xyz_clean}, rpy={rpy_clean})")
+        return (f"""URDFLink(
+  name={self.name},
+  xyz=\"{xyz_clean}\"
+  rpy=\"{rpy_clean}\"
+)""")
 
 class FreeCADJoint:
     def __init__(self, joint, link_name, child_link=None):
@@ -374,9 +378,23 @@ class URDFJoint:
                 val = float(match.group(0))
                 return '0.0' if abs(val) < 1e-8 else str(val)
             return re.sub(r'-?\d*\.\d+(?:e[+-]?\d+)?', repl, s)
-        return (f"URDFJoint(name={self.name}, type={self.joint_type},\n"
-                f"          parent_link={self.parent_link}, child_link={self.child_link},\n"
-                f"          urdf_transform={clean_placement_str(self.urdf_transform)})")
+        def clean(val):
+            try:
+                fval = float(val)
+                return 0.0 if abs(fval) < 1e-8 else fval
+            except Exception:
+                return val
+        from utils_math import format_placement
+        xyz, rpy = format_placement(self.urdf_transform, scale=1.0)
+        xyz_clean = ' '.join(str(clean(x)) for x in xyz.split())
+        rpy_clean = ' '.join(str(clean(x)) for x in rpy.split())
+        return (f"""URDFJoint(
+  name={self.name},
+  parent_link={self.parent_link},
+  child_link={self.child_link},
+  xyz=\"{xyz_clean}\"
+  rpy=\"{rpy_clean}\"
+)""")
 
 # Update handle_joint to use new URDFJoint signature
 
