@@ -2,24 +2,14 @@
 └─ Foot_V2
     └─ Joint: Joint (type: revolute)
         └─ STS3125
-            ├─ Joint: Joint (type: revolute)
-            │   └─ [CYCLE] Foot_V2
-            └─ Joint: Joint005 (type: revolute)
+            └─ Joint: Joint005 (type: fixed)
                 └─ Servo_Case_to_Grid
-                    ├─ Joint: Joint002 (type: fixed)
-                    │   └─ _x007
-                    │       ├─ Joint: Joint002 (type: fixed)
-                    │       │   └─ [CYCLE] Servo_Case_to_Grid
-                    │       └─ Joint: Joint003 (type: fixed)
-                    │           └─ Servo_Horn_to_Grid
-                    │               ├─ Joint: Joint003 (type: fixed)
-                    │               │   └─ [CYCLE] _x007
-                    │               └─ Joint: Joint004 (type: revolute)
-                    │                   └─ STS3126
-                    │                       └─ Joint: Joint004 (type: revolute)
-                    │                           └─ [CYCLE] Servo_Horn_to_Grid
-                    └─ Joint: Joint005 (type: revolute)
-                        └─ [CYCLE] STS3125
+                    └─ Joint: Joint006 (type: fixed)
+                        └─ _x007
+                            └─ Joint: Joint003 (type: fixed)
+                                └─ Servo_Horn_to_Grid
+                                    └─ Joint: Joint007 (type: revolute)
+                                        └─ STS3126
 
 Does this look right for LINK (root) 'Body010' relative to 'world'?
   Translated by: X: 0 Y: 0 Z: 0

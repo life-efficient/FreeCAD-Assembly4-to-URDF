@@ -25,24 +25,29 @@ def log_newline():
 # --- Object graph printer ---
 def print_object_graph(links, joint_objs):
     from freecad_helpers import get_link_name_from_reference
-    def print_link_tree(link, prefix='', is_last=True, visited=None):
-        if visited is None:
-            visited = set()
-        if link.name in visited:
+    def print_link_tree(link, prefix='', is_last=True, visited_links=None, visited_joints=None):
+        if visited_links is None:
+            visited_links = set()
+        if visited_joints is None:
+            visited_joints = set()
+        if link.name in visited_links:
             log_message(f'{prefix}{"└─ " if is_last else "├─ "}[CYCLE] {link.name}')
             return
-        visited.add(link.name)
+        visited_links.add(link.name)
         log_message(f'{prefix}{"└─ " if is_last else "├─ "}{link.name}')
         # Find all joints where this link is either Reference1 or Reference2
         attached_joints = []
         for joint in joint_objs:
+            joint_id = id(joint)
+            if joint_id in visited_joints:
+                continue
             ref1 = get_link_name_from_reference(getattr(joint, "Reference1", None))
             ref2 = get_link_name_from_reference(getattr(joint, "Reference2", None))
             if ref1 == link.name or ref2 == link.name:
-                attached_joints.append((joint, ref1, ref2))
+                attached_joints.append((joint, ref1, ref2, joint_id))
         # For each attached joint, determine the direction and traverse to the other link
         child_count = len(attached_joints)
-        for idx, (joint, ref1, ref2) in enumerate(attached_joints):
+        for idx, (joint, ref1, ref2, joint_id) in enumerate(attached_joints):
             joint_is_last = (idx == child_count - 1)
             joint_prefix = prefix + ('    ' if is_last else '│   ')
             joint_name = getattr(joint, 'Name', '<no name>')
@@ -56,7 +61,10 @@ def print_object_graph(links, joint_objs):
             else:
                 continue  # skip if no valid child
             next_prefix = joint_prefix + ('    ' if joint_is_last else '│   ')
-            print_link_tree(child_link, next_prefix, True, visited)
+            # Mark this joint as visited for this path
+            new_visited_joints = visited_joints.copy()
+            new_visited_joints.add(joint_id)
+            print_link_tree(child_link, next_prefix, True, visited_links.copy(), new_visited_joints)
     log_message('--- OBJECT GRAPH (tree) ---')
     # Find all grounded links (those attached to grounded joints)
     grounded_links = set()
