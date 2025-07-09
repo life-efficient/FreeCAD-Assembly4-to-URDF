@@ -19,8 +19,8 @@
                                     └─ Joint: Joint004 (type: revolute)
                                         └─ STS3126
 
-[handle_link] Handling link: Body010 (is_root=True, parent=world)
-Does this look right for LINK (root) 'Body010' relative to 'world'?
+[handle_link] Handling link: Foot_V2 (is_root=True, parent=world)
+Does this look right for LINK (root) 'Foot_V2' relative to 'world'?
   Translated by: X: 0 Y: 0 Z: 0
   Rotated by:   X: 0.0° Y: 0.0° Z: 0.0°
 

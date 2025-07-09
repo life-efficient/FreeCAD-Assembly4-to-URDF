@@ -327,8 +327,7 @@ class URDFLink:
 
 # Refactor handle_link to use FreeCADLink and URDFLink
 
-def handle_link(f, part, prev_joint=None, is_root=False, joint_name=None, parent_name=None):
-    freecad_link = FreeCADLink(part)
+def handle_link(f, freecad_link, prev_joint=None, is_root=False, joint_name=None, parent_name=None):
     log_message(f"[handle_link] Handling link: {freecad_link.name} (is_root={is_root}, parent={parent_name})")
     if is_root or prev_joint is None or not hasattr(prev_joint, 'parent_placement') or prev_joint.parent_placement is None:
         mesh_offset = None
@@ -486,7 +485,7 @@ def build_assembly_tree(robot_parts, joint_objs):
 # New traversal using the object graph
 
 def traverse_link(f, link, parent_joint=None, is_root=False, parent_name=None):
-    handle_link(f, link.body, prev_joint=parent_joint, is_root=is_root, parent_name=parent_name)
+    handle_link(f, link, prev_joint=parent_joint, is_root=is_root, parent_name=parent_name)
     for joint in link.joints:
         # Write the joint
         handle_joint(f, parent_joint, joint, link.name, joint.child_link.name)
