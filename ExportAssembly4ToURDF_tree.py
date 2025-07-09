@@ -103,86 +103,86 @@ MANUAL_CHECK = True  # Set to True to print human-readable transform checks
 #         f.write('\n')
 #     _manual_check_file_cleared = True
 
-def write_link(f, part, mesh_offset_placement=None, is_root=False, joint_name=None, parent_name=None):
-    from freecad_helpers import export_mesh, get_inertial
-    from utils_math import format_vector, format_placement
-    import FreeCAD as App
-    if part.TypeId == "App::Link":
-        body = part.LinkedObject
-        name = part.Name
-    else:
-        body = part
-        name = part.Name
-    if not body or body.TypeId != "PartDesign::Body":
-        raise RuntimeError(f"ERROR: {name} is not a PartDesign::Body")
-    if not hasattr(body, "Shape") or body.Shape is None or body.Shape.isNull():
-        raise RuntimeError(f"ERROR: {name} has no valid shape to export")
-    mesh_path = export_mesh(body, name)
-    inertial = get_inertial(body, name)
-    if is_root or mesh_offset_placement is None:
-        xyz, rpy = "0 0 0", "0 0 0"
-        if MANUAL_CHECK:
-            # msg = f"Does this look right for LINK (root) '{name}' relative to '{parent_name or 'world'}'?\n  Translated by: X: 0 Y: 0 Z: 0\n  Rotated by:   X: 0.0° Y: 0.0° Z: 0.0°"
-            # log_message(msg)
-            log_newline()
-    else:
-        xyz, rpy = format_placement(mesh_offset_placement.inverse(), scale=SCALE)
-        if MANUAL_CHECK:
-            # msg = f"Does this look right for LINK '{name}' relative to '{parent_name}'?\n  Translated by: X: {xyz.split()[0]} Y: {xyz.split()[1]} Z: {xyz.split()[2]}\n  Rotated by:   X: {math.degrees(float(rpy.split()[0])):.1f}° Y: {math.degrees(float(rpy.split()[1])):.1f}° Z: {math.degrees(float(rpy.split()[2])):.1f}°"
-            # log_message(msg)
-            log_newline()
-    f.write(f'  <link name="{name}">\n')
-    f.write(f'    <inertial>\n')
-    f.write(f'      <origin xyz="{format_vector(inertial["com"])}" rpy="0 0 0"/>\n')
-    f.write(f'      <mass value="{inertial["mass"]:.6f}"/>\n')
-    f.write(f'      <inertia ')
-    for k, v in inertial["inertia"].items():
-        f.write(f'{k}="{v:.6f}" ')
-    f.write('/>\n')
-    f.write(f'    </inertial>\n')
-    f.write(f'    <visual>\n')
-    f.write(f'      <origin xyz="{xyz}" rpy="{rpy}"/>\n')
-    f.write(f'      <geometry>\n')
-    f.write(f'        <mesh filename="{mesh_path}"/>\n')
-    f.write(f'      </geometry>\n')
-    f.write(f'    </visual>\n')
-    f.write(f'    <collision>\n')
-    f.write(f'      <origin xyz="{xyz}" rpy="{rpy}"/>\n')
-    f.write(f'      <geometry>\n')
-    f.write(f'        <mesh filename="{mesh_path}"/>\n')
-    f.write(f'      </geometry>\n')
-    f.write(f'    </collision>\n')
-    f.write(f'  </link>\n')
+# def write_link(f, part, mesh_offset_placement=None, is_root=False, joint_name=None, parent_name=None):
+#     from freecad_helpers import export_mesh, get_inertial
+#     from utils_math import format_vector, format_placement
+#     import FreeCAD as App
+#     if part.TypeId == "App::Link":
+#         body = part.LinkedObject
+#         name = part.Name
+#     else:
+#         body = part
+#         name = part.Name
+#     if not body or body.TypeId != "PartDesign::Body":
+#         raise RuntimeError(f"ERROR: {name} is not a PartDesign::Body")
+#     if not hasattr(body, "Shape") or body.Shape is None or body.Shape.isNull():
+#         raise RuntimeError(f"ERROR: {name} has no valid shape to export")
+#     mesh_path = export_mesh(body, name)
+#     inertial = get_inertial(body, name)
+#     if is_root or mesh_offset_placement is None:
+#         xyz, rpy = "0 0 0", "0 0 0"
+#         if MANUAL_CHECK:
+#             # msg = f"Does this look right for LINK (root) '{name}' relative to '{parent_name or 'world'}'?\n  Translated by: X: 0 Y: 0 Z: 0\n  Rotated by:   X: 0.0° Y: 0.0° Z: 0.0°"
+#             # log_message(msg)
+#             log_newline()
+#     else:
+#         xyz, rpy = format_placement(mesh_offset_placement.inverse(), scale=SCALE)
+#         if MANUAL_CHECK:
+#             # msg = f"Does this look right for LINK '{name}' relative to '{parent_name}'?\n  Translated by: X: {xyz.split()[0]} Y: {xyz.split()[1]} Z: {xyz.split()[2]}\n  Rotated by:   X: {math.degrees(float(rpy.split()[0])):.1f}° Y: {math.degrees(float(rpy.split()[1])):.1f}° Z: {math.degrees(float(rpy.split()[2])):.1f}°"
+#             # log_message(msg)
+#             log_newline()
+#     f.write(f'  <link name="{name}">\n')
+#     f.write(f'    <inertial>\n')
+#     f.write(f'      <origin xyz="{format_vector(inertial["com"])}" rpy="0 0 0"/>\n')
+#     f.write(f'      <mass value="{inertial["mass"]:.6f}"/>\n')
+#     f.write(f'      <inertia ')
+#     for k, v in inertial["inertia"].items():
+#         f.write(f'{k}="{v:.6f}" ')
+#     f.write('/>\n')
+#     f.write(f'    </inertial>\n')
+#     f.write(f'    <visual>\n')
+#     f.write(f'      <origin xyz="{xyz}" rpy="{rpy}"/>\n')
+#     f.write(f'      <geometry>\n')
+#     f.write(f'        <mesh filename="{mesh_path}"/>\n')
+#     f.write(f'      </geometry>\n')
+#     f.write(f'    </visual>\n')
+#     f.write(f'    <collision>\n')
+#     f.write(f'      <origin xyz="{xyz}" rpy="{rpy}"/>\n')
+#     f.write(f'      <geometry>\n')
+#     f.write(f'        <mesh filename="{mesh_path}"/>\n')
+#     f.write(f'      </geometry>\n')
+#     f.write(f'    </collision>\n')
+#     f.write(f'  </link>\n')
 
-def writeFixedJoint(f, joint, semantic_name, parent, child, xyz, rpy):
-    f.write(f'  <joint name="{semantic_name}" type="fixed">\n')
-    f.write(f'    <parent link="{parent}"/>\n')
-    f.write(f'    <child link="{child}"/>\n')
-    f.write(f'    <origin xyz="{xyz}" rpy="{rpy}"/>\n')
-    f.write('  </joint>\n')
+# def writeFixedJoint(f, joint, semantic_name, parent, child, xyz, rpy):
+#     f.write(f'  <joint name="{semantic_name}" type="fixed">\n')
+#     f.write(f'    <parent link="{parent}"/>\n')
+#     f.write(f'    <child link="{child}"/>\n')
+#     f.write(f'    <origin xyz="{xyz}" rpy="{rpy}"/>\n')
+#     f.write('  </joint>\n')
 
-def writeRevoluteJoint(f, joint, semantic_name, parent, child, xyz, rpy, axis_vec):
-    f.write(f'  <joint name="{semantic_name}" type="revolute">\n')
-    f.write(f'    <parent link="{parent}"/>\n')
-    f.write(f'    <child link="{child}"/>\n')
-    f.write(f'    <origin xyz="{xyz}" rpy="{rpy}"/>\n')
-    if axis_vec is not None:
-        f.write(f'    <axis xyz="{axis_vec.x} {axis_vec.y} {axis_vec.z}"/>\n')
-    else:
-        f.write('    <axis xyz="0 0 1"/>\n')
-    lower = getattr(joint, "LowerLimit", -3.14)
-    upper = getattr(joint, "UpperLimit", 3.14)
-    effort = getattr(joint, "Effort", 1)
-    velocity = getattr(joint, "Velocity", 1)
-    f.write(f'    <limit lower="{lower}" upper="{upper}" effort="{effort}" velocity="{velocity}"/>\n')
-    f.write('  </joint>\n')
+# def writeRevoluteJoint(f, joint, semantic_name, parent, child, xyz, rpy, axis_vec):
+#     f.write(f'  <joint name="{semantic_name}" type="revolute">\n')
+#     f.write(f'    <parent link="{parent}"/>\n')
+#     f.write(f'    <child link="{child}"/>\n')
+#     f.write(f'    <origin xyz="{xyz}" rpy="{rpy}"/>\n')
+#     if axis_vec is not None:
+#         f.write(f'    <axis xyz="{axis_vec.x} {axis_vec.y} {axis_vec.z}"/>\n')
+#     else:
+#         f.write('    <axis xyz="0 0 1"/>\n')
+#     lower = getattr(joint, "LowerLimit", -3.14)
+#     upper = getattr(joint, "UpperLimit", 3.14)
+#     effort = getattr(joint, "Effort", 1)
+#     velocity = getattr(joint, "Velocity", 1)
+#     f.write(f'    <limit lower="{lower}" upper="{upper}" effort="{effort}" velocity="{velocity}"/>\n')
+#     f.write('  </joint>\n')
 
-def find_joints_group(assembly):
-    for obj in assembly.Group:
-        if obj.TypeId == "Assembly::JointGroup":
-            if "Joints" in obj.Name:
-                return obj
-    return None
+# def find_joints_group(assembly):
+#     for obj in assembly.Group:
+#         if obj.TypeId == "Assembly::JointGroup":
+#             if "Joints" in obj.Name:
+#                 return obj
+#     return None
 
 # --- New helper functions ---
 def compute_joint_transform(parent_placement, child_placement):
@@ -370,14 +370,14 @@ class URDFJoint:
 
     def __str__(self):
         # Only show transform info for debugging
-        def clean_placement_str(placement):
-            import re
-            s = str(placement)
-            # Replace numbers very close to zero with 0.0
-            def repl(match):
-                val = float(match.group(0))
-                return '0.0' if abs(val) < 1e-8 else str(val)
-            return re.sub(r'-?\d*\.\d+(?:e[+-]?\d+)?', repl, s)
+        # def clean_placement_str(placement):
+        #     import re
+        #     s = str(placement)
+        #     # Replace numbers very close to zero with 0.0
+        #     def repl(match):
+        #         val = float(match.group(0))
+        #         return '0.0' if abs(val) < 1e-8 else str(val)
+        #     return re.sub(r'-?\d*\.\d+(?:e[+-]?\d+)?', repl, s)
         def clean(val):
             try:
                 fval = float(val)

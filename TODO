@@ -8,3 +8,4 @@ checklist
 - joint origins are aligned to have coincident axes
 - meshes are offset by inverse of previous joint parent placement
 - joint transforms are computed as inverse of previous joint parent placement @ child joint placement
+- mesh transforms apply joint alignment
