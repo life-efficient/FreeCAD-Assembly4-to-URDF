@@ -110,7 +110,7 @@ class FreeCADLink:
         self.joints = []  # List of FreeCADJoint objects
 
 class URDFLink:
-    def __init__(self, freecad_link, mesh_offset=None, is_root=False, parent_name=None, parent_joint=None):
+    def __init__(self, freecad_link, is_root=False, parent_name=None, parent_joint=None):
         self.name = freecad_link.name
         self.body = freecad_link.body
         self.mesh_path = export_mesh(self.body, self.name)

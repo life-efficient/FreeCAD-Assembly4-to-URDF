@@ -13,6 +13,7 @@
                                     └─ Joint: Joint004 (type: revolute) -> STS3126
                                         └─ Link: STS3126
 
+root link - skipping alignment
 URDFLink(
   name=Foot_V2,
   xyz="0.0 0.0 0.0"
