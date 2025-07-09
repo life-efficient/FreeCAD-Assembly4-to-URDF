@@ -19,12 +19,13 @@ URDFLink(
   xyz="0.0 0.0 0.0"
   rpy="0.0 0.0 0.0"
 )
+[DEBUG] prev_joint is None - this joint must be attached to the root link
 URDFJoint(
   name=Foot_V2-STS3125_revolute,
   parent_link=Foot_V2,
   child_link=STS3125,
-  xyz="0.0 -19.0 0.0"
-  rpy="0.0 0.0 1.570796"
+  xyz="0.0 -18.5 0.0"
+  rpy="0.0 0.0 -1.570796"
 )
 [DEBUG] parent name: Foot_V2
 [DEBUG] get_origin_alignment: from=Placement [Pos=(0,-18.5,4.1e-15), Yaw-Pitch-Roll=(0,0,-90)], to=Placement [Pos=(2e-16,-19,-4.6e-15), Yaw-Pitch-Roll=(0,0,90)], axis=Vector (1.0, 0.0, 0.0), angle=3.141592653589793

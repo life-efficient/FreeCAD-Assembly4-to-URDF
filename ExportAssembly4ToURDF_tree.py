@@ -176,7 +176,11 @@ class URDFJoint:
         self.freecad_joint = curr_joint
         self.joint_type = curr_joint.joint_type
         # Compose the transform: align the joint origin to the parent joint's frame, including axis alignment
-        if prev_joint is not None and hasattr(prev_joint, 'from_child_origin') and prev_joint.from_child_origin is not None and curr_joint.from_parent_origin is not None:
+        if prev_joint is None:
+            log_message(f"[DEBUG] prev_joint is None - this joint must be attached to the root link")
+            self.urdf_transform = curr_joint.from_parent_origin
+        else:
+            assert hasattr(prev_joint, 'from_child_origin') and prev_joint.from_child_origin is not None and curr_joint.from_parent_origin is not None
             # Insert axis alignment between the two origins
             axis_alignment = get_origin_alignment(prev_joint.from_child_origin, curr_joint.from_parent_origin)
             aligned = prev_joint.from_child_origin.inverse().multiply(axis_alignment).multiply(curr_joint.from_parent_origin)
@@ -185,8 +189,6 @@ class URDFJoint:
                 self.urdf_transform = aligned.multiply(curr_joint.from_child_origin)
             else:
                 self.urdf_transform = aligned
-        else:
-            self.urdf_transform = curr_joint.from_child_origin
         # Axis in parent frame
         if curr_joint.from_child_origin is not None:
             self.axis = curr_joint.from_child_origin.Rotation.multVec(App.Vector(0,0,1))
