@@ -14,23 +14,23 @@
                                         └─ Link: STS3126
 
 URDFLink(name=Foot_V2, xyz=0.0 0.0 0.0, rpy=0.0 0.0 0.0)
-URDFJoint(name=Joint, type=revolute,
+URDFJoint(name=Foot_V2-STS3125_revolute, type=revolute,
           parent_link=Foot_V2, child_link=STS3125,
           urdf_transform=Placement [Pos=(0.0,-19,0.0), Yaw-Pitch-Roll=(0.0,0.0,90)])
 URDFLink(name=STS3125, xyz=0.0 0.0 18.5, rpy=0.0 0.0 1.570796)
-URDFJoint(name=Joint001, type=fixed,
+URDFJoint(name=STS3125-Servo_Case_to_Grid_fixed, type=fixed,
           parent_link=STS3125, child_link=Servo_Case_to_Grid,
           urdf_transform=Placement [Pos=(0.0,0.0,34.5), Yaw-Pitch-Roll=(-90,0.0,-90)])
 URDFLink(name=Servo_Case_to_Grid, xyz=35.0 -16.0 0.0, rpy=0.0 1.570796 3.141593)
-URDFJoint(name=Joint002, type=fixed,
+URDFJoint(name=Servo_Case_to_Grid-_x6_fixed, type=fixed,
           parent_link=Servo_Case_to_Grid, child_link=_x6,
           urdf_transform=Placement [Pos=(30,-26,-50), Yaw-Pitch-Roll=(0,90,180)])
 URDFLink(name=_x6, xyz=8.0 -5.0 16.0, rpy=-1.570796 0.0 -1.570796)
-URDFJoint(name=Joint003, type=fixed,
+URDFJoint(name=_x6-Servo_Horn_to_Grid_fixed, type=fixed,
           parent_link=_x6, child_link=Servo_Horn_to_Grid,
           urdf_transform=Placement [Pos=(-17.6205,-5,37.5), Yaw-Pitch-Roll=(0.0,0.0,90)])
 URDFLink(name=Servo_Horn_to_Grid, xyz=-5.0 0.0 5.0, rpy=3.141593 0.0 -1.570796)
-URDFJoint(name=Joint004, type=revolute,
+URDFJoint(name=Servo_Horn_to_Grid-STS3126_revolute, type=revolute,
           parent_link=Servo_Horn_to_Grid, child_link=STS3126,
           urdf_transform=Placement [Pos=(-5,0.0,24), Yaw-Pitch-Roll=(180,0.0,0.0)])
 URDFLink(name=STS3126, xyz=0.0 0.0 18.5, rpy=0.0 0.0 1.570796)

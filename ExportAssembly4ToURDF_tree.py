@@ -300,10 +300,9 @@ class FreeCADJoint:
         self.child_link = child_link  # Should be a FreeCADLink or None
 
 class URDFJoint:
-    def __init__(self, prev_joint, curr_joint):
+    def __init__(self, prev_joint, curr_joint, parent_link=None, child_link=None):
         self.freecad_joint = curr_joint
         self.joint_type = curr_joint.joint_type
-        self.name = curr_joint.name
         # Compose the transform: prev_joint.from_parent_origin.inverse() * curr_joint.from_child_origin
         if prev_joint is not None and hasattr(prev_joint, 'from_parent_origin') and prev_joint.from_parent_origin is not None and curr_joint.from_child_origin is not None:
             self.urdf_transform = prev_joint.from_parent_origin.inverse().multiply(curr_joint.from_child_origin)
@@ -315,23 +314,21 @@ class URDFJoint:
             self.axis = curr_joint.from_child_origin.Rotation.multVec(App.Vector(0,0,1))
         else:
             self.axis = None
-        self.parent_link = None  # to be set when writing
-        self.child_link = None   # to be set when writing
+        # Set parent_link and child_link from arguments or from curr_joint
+        self.parent_link = parent_link if parent_link is not None else curr_joint.link_name
+        self.child_link = child_link if child_link is not None and hasattr(child_link, 'name') else (curr_joint.child_link.name if curr_joint.child_link is not None else None)
+        # Set semantic name immediately
+        def sanitize(name):
+            return str(name).replace(' ', '_').replace('-', '_') if name else 'none'
+        self.name = f"{sanitize(self.parent_link)}-{sanitize(self.child_link)}_{self.joint_type}"
 
     def write(self, f, parent_link, child_link):
         from utils_math import format_placement
         import math
-        def sanitize(name):
-            return str(name).replace(' ', '_').replace('-', '_') if name else 'none'
         joint_type = self.joint_type
-        if getattr(self.freecad_joint, "reference1", None) is None and getattr(self.freecad_joint, "reference2", None) is None:
-            semantic_name = "grounded_joint"
-            parent = "world"
-            child = child_link
-        else:
-            parent = parent_link
-            child = child_link
-            semantic_name = f"{sanitize(parent)}-{sanitize(child)}_{joint_type}"
+        parent = parent_link
+        child = child_link
+        semantic_name = self.name
         joint_xyz, joint_rpy = format_placement(self.urdf_transform, scale=SCALE)
         axis_vec = self.axis
         if parent_link != parent and axis_vec is not None:
@@ -518,9 +515,7 @@ def traverse_link(f, link, parent_joint=None, is_root=False, parent_name=None, v
         visited_joints_new = visited_joints.copy()
         visited_joints_new.add(joint_id)
         # Create URDFJoint and print its state before writing
-        urdf_joint = URDFJoint(parent_joint, joint)
-        urdf_joint.parent_link = link.name
-        urdf_joint.child_link = joint.child_link.name
+        urdf_joint = URDFJoint(parent_joint, joint, parent_link=link.name, child_link=joint.child_link.name)
         log_message(str(urdf_joint))
         urdf_joint.write(f, link.name, joint.child_link.name)
         # Recursively traverse the child link
