@@ -1,3 +1,9 @@
 - set material and infill properties in freecad
 - correctly extract material properties in script
 - apply joint constraints
+
+
+checklist
+- joint origins are aligned to have coincident axes
+- meshes are offset by inverse of previous joint parent placement
+- joint transforms are computed as inverse of previous joint parent placement @ child joint placement
