@@ -38,40 +38,24 @@
                                     └─ Joint: Joint004 (type: revolute) -> STS3126
                                         └─ Link: STS3126
 
-[handle_link] Handling link: Foot_V2 (is_root=True, parent=world)
-
-[handle_joint] Handling joint: Joint (type=revolute) parent=Foot_V2 child=STS3125
-Does this look right for JOINT 'Foot_V2-STS3125_revolute' relative to 'Foot_V2'?
-  Translated by: X: 0.000000 Y: -19.000000 Z: -0.000000
-  Rotated by:   X: 0.0° Y: 0.0° Z: 90.0°
-
-[handle_link] Handling link: STS3125 (is_root=False, parent=Foot_V2)
-
-[handle_joint] Handling joint: Joint001 (type=fixed) parent=STS3125 child=Servo_Case_to_Grid
-Does this look right for JOINT 'STS3125-Servo_Case_to_Grid_fixed' relative to 'STS3125'?
-  Translated by: X: -0.000000 Y: -0.000000 Z: 34.500000
-  Rotated by:   X: -90.0° Y: 0.0° Z: -90.0°
-
-[handle_link] Handling link: Servo_Case_to_Grid (is_root=False, parent=STS3125)
-
-[handle_joint] Handling joint: Joint002 (type=fixed) parent=Servo_Case_to_Grid child=_x6
-Does this look right for JOINT 'Servo_Case_to_Grid-_x6_fixed' relative to 'Servo_Case_to_Grid'?
-  Translated by: X: 30.000000 Y: -26.000000 Z: -50.000000
-  Rotated by:   X: 0.0° Y: 90.0° Z: 180.0°
-
-[handle_link] Handling link: _x6 (is_root=False, parent=Servo_Case_to_Grid)
-
-[handle_joint] Handling joint: Joint003 (type=fixed) parent=_x6 child=Servo_Horn_to_Grid
-Does this look right for JOINT '_x6-Servo_Horn_to_Grid_fixed' relative to '_x6'?
-  Translated by: X: -17.620499 Y: -5.000001 Z: 37.500000
-  Rotated by:   X: 0.0° Y: 0.0° Z: 90.0°
-
-[handle_link] Handling link: Servo_Horn_to_Grid (is_root=False, parent=_x6)
-
-[handle_joint] Handling joint: Joint004 (type=revolute) parent=Servo_Horn_to_Grid child=STS3126
-Does this look right for JOINT 'Servo_Horn_to_Grid-STS3126_revolute' relative to 'Servo_Horn_to_Grid'?
-  Translated by: X: -5.000000 Y: 0.000000 Z: 24.000000
-  Rotated by:   X: 180.0° Y: -0.0° Z: -0.0°
-
-[handle_link] Handling link: STS3126 (is_root=False, parent=Servo_Horn_to_Grid)
-
+URDFLink(name=Foot_V2, xyz=0 0 0, rpy=0 0 0)
+URDFJoint(name=Joint, type=revolute,
+          parent_link=Foot_V2, child_link=STS3125,
+          urdf_transform=Placement [Pos=(2.34824e-16,-19,-4.59953e-15), Yaw-Pitch-Roll=(1.7426e-16,7.23713e-16,90)])
+URDFLink(name=STS3125, xyz=-0.000000 0.000000 18.500000, rpy=-0.000000 0.000000 1.570796)
+URDFJoint(name=Joint001, type=fixed,
+          parent_link=STS3125, child_link=Servo_Case_to_Grid,
+          urdf_transform=Placement [Pos=(-3.41556e-15,-3.55054e-15,34.5), Yaw-Pitch-Roll=(-90,1.27222e-14,-90)])
+URDFLink(name=Servo_Case_to_Grid, xyz=35.000000 -16.000000 -0.000000, rpy=0.000000 1.570796 3.141593)
+URDFJoint(name=Joint002, type=fixed,
+          parent_link=Servo_Case_to_Grid, child_link=_x6,
+          urdf_transform=Placement [Pos=(30,-26,-50), Yaw-Pitch-Roll=(0,90,180)])
+URDFLink(name=_x6, xyz=8.000000 -5.000000 16.000000, rpy=-1.570796 0.000000 -1.570796)
+URDFJoint(name=Joint003, type=fixed,
+          parent_link=_x6, child_link=Servo_Horn_to_Grid,
+          urdf_transform=Placement [Pos=(-17.6205,-5,37.5), Yaw-Pitch-Roll=(6.36111e-15,6.36111e-15,90)])
+URDFLink(name=Servo_Horn_to_Grid, xyz=-5.000000 -0.000000 5.000000, rpy=3.141593 0.000000 -1.570796)
+URDFJoint(name=Joint004, type=revolute,
+          parent_link=Servo_Horn_to_Grid, child_link=STS3126,
+          urdf_transform=Placement [Pos=(-5,2.5654e-14,24), Yaw-Pitch-Roll=(180,-6.13851e-16,-4.88896e-15)])
+URDFLink(name=STS3126, xyz=0.000000 -0.000000 18.500000, rpy=-0.000000 -0.000000 1.570796)

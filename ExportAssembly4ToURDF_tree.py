@@ -265,6 +265,9 @@ class URDFLink:
         f.write(f'    </collision>\n')
         f.write(f'  </link>\n')
 
+    def __str__(self):
+        return (f"URDFLink(name={self.name}, xyz={self.xyz}, rpy={self.rpy})")
+
 class FreeCADJoint:
     def __init__(self, joint, link_name, child_link=None):
         self.joint = joint
@@ -355,6 +358,12 @@ class URDFJoint:
         velocity = getattr(self.freecad_joint.joint, "Velocity", 1)
         f.write(f'    <limit lower="{lower}" upper="{upper}" effort="{effort}" velocity="{velocity}"/>\n')
         f.write('  </joint>\n')
+
+    def __str__(self):
+        # Only show transform info for debugging
+        return (f"URDFJoint(name={self.name}, type={self.joint_type},\n"
+                f"          parent_link={self.parent_link}, child_link={self.child_link},\n"
+                f"          urdf_transform={self.urdf_transform})")
 
 # Update handle_joint to use new URDFJoint signature
 
@@ -452,20 +461,20 @@ def build_assembly_tree(robot_parts, joint_objs):
             if other_link_name and other_link_name in links:
                 joint_name = getattr(joint_obj, 'Name', '<no name>')
                 joint_type = getattr(joint_obj, 'JointType', '<none>')
-                log_message(f"[TREE BUILD] Link '{link.name}' found joint '{joint_name}' (type: {joint_type}) to '{other_link_name}'")
+                # log_message(f"[TREE BUILD] Link '{link.name}' found joint '{joint_name}' (type: {joint_type}) to '{other_link_name}'")
                 joint = FreeCADJoint(joint_obj, link.name)
                 joint.child_link = links[other_link_name]
 
                 # SKIP JOINTS ALREADY VISITED - these are the joints that are already in the tree and are (grand)parents of this one
                 joint_id = id(joint_obj)
                 if joint_id in visited_joints:
-                    log_message(f"[TREE BUILD] Skipping already visited joint '{joint_name}'")
+                    # log_message(f"[TREE BUILD] Skipping already visited joint '{joint_name}'")
                     continue
                 visited_joints.add(joint_id)
 
                 # ADD JOINT TO LINK AND RECURSE
-                log_message(f"[TREE BUILD] Adding joint '{joint_name}' to link '{link.name}'")
-                log_message(f"[TREE BUILD] Setting child_link of joint '{joint_name}' to '{other_link_name}'")
+                # log_message(f"[TREE BUILD] Adding joint '{joint_name}' to link '{link.name}'")
+                # log_message(f"[TREE BUILD] Setting child_link of joint '{joint_name}' to '{other_link_name}'")
                 link.joints.append(joint)
                 build_tree(joint.child_link)
     build_tree(root_link)
@@ -482,15 +491,22 @@ def traverse_link(f, link, parent_joint=None, is_root=False, parent_name=None, v
     if link.name in visited_links:
         log_message(f'[CYCLE] Skipping already visited link: {link.name}')
         return
-    handle_link(f, link, prev_joint=parent_joint, is_root=is_root, parent_name=parent_name)
+    # Print URDFLink state before writing
+    urdf_link = URDFLink(link, mesh_offset=parent_joint.parent_placement.inverse() if parent_joint and hasattr(parent_joint, 'parent_placement') and parent_joint.parent_placement is not None else None, is_root=is_root, parent_name=parent_name)
+    log_message(str(urdf_link))
+    urdf_link.write(f)
     for joint in link.joints:
         joint_id = id(joint)
         if joint_id in visited_joints:
             continue
         visited_joints_new = visited_joints.copy()
         visited_joints_new.add(joint_id)
-        # Write the joint
-        handle_joint(f, parent_joint, joint, link.name, joint.child_link.name)
+        # Create URDFJoint and print its state before writing
+        urdf_joint = URDFJoint(parent_joint, joint)
+        urdf_joint.parent_link = link.name
+        urdf_joint.child_link = joint.child_link.name
+        log_message(str(urdf_joint))
+        urdf_joint.write(f, link.name, joint.child_link.name)
         # Recursively traverse the child link
         traverse_link(f, joint.child_link, parent_joint=joint, is_root=False, parent_name=link.name, visited_links=visited_links.copy(), visited_joints=visited_joints_new)
     # Only mark the link as visited after all joints/children are processed
