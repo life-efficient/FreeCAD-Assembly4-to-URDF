@@ -7,17 +7,7 @@
 [DEBUG] Joint Joint004: Reference1=STS3126, Reference2=Servo_Horn_to_Grid [BOTH FOUND]
 [DEBUG] Grounded joint found: GroundedJoint grounding Foot_V2
 --- ASSEMBLY TREE ---
-└─ Foot_V2
-    └─ Joint: Joint (type: revolute)
-        └─ STS3125
-            └─ Joint: Joint001 (type: fixed)
-                └─ Servo_Case_to_Grid
-                    └─ Joint: Joint002 (type: fixed)
-                        └─ _x6
-                            └─ Joint: Joint003 (type: fixed)
-                                └─ Servo_Horn_to_Grid
-                                    └─ Joint: Joint004 (type: revolute)
-                                        └─ STS3126
+Link: Foot_V2
 
 [handle_link] Handling link: Foot_V2 (is_root=True, parent=world)
 Does this look right for LINK (root) 'Foot_V2' relative to 'world'?

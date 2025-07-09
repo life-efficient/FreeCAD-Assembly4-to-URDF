@@ -19,7 +19,7 @@ def log_message(msg):
     try:
         with open(MANUAL_CHECK_FILE, 'r', encoding='utf-8') as f:
             line_count = sum(1 for _ in f)
-        assert line_count < 1000, f"manual_check.txt exceeds 1000 lines ({line_count}) -- possible infinite loop!"
+        assert line_count < 100, f"manual_check.txt exceeds 100 lines ({line_count}) -- possible infinite loop!"
     except FileNotFoundError:
         pass
     print(msg)
@@ -31,52 +31,26 @@ def log_newline():
         f.write('\n')
 
 # --- Assembly tree printer ---
-def print_assembly_tree(root_links, joint_objs, links):
-    from freecad_helpers import get_link_name_from_reference
-    def print_link_tree(link, prefix='', is_last=True, visited_links=None, visited_joints=None):
-        if visited_links is None:
-            visited_links = set()
-        if visited_joints is None:
-            visited_joints = set()
-        if link.name in visited_links:
-            log_message(f'{prefix}{"└─ " if is_last else "├─ "}[CYCLE] {link.name}')
-            return
-        visited_links.add(link.name)
-        log_message(f'{prefix}{"└─ " if is_last else "├─ "}{link.name}')
-        # Find all joints where this link is either Reference1 or Reference2 and not yet visited
-        attached_joints = []
-        for joint in joint_objs:
-            joint_id = id(joint)
-            if joint_id in visited_joints:
-                continue
-            ref1 = get_link_name_from_reference(getattr(joint, "Reference1", None))
-            ref2 = get_link_name_from_reference(getattr(joint, "Reference2", None))
-            if ref1 == link.name or ref2 == link.name:
-                attached_joints.append((joint, ref1, ref2, joint_id))
-        child_count = len(attached_joints)
-        for idx, (joint, ref1, ref2, joint_id) in enumerate(attached_joints):
-            joint_is_last = (idx == child_count - 1)
-            joint_prefix = prefix + ('    ' if is_last else '│   ')
-            joint_name = getattr(joint, 'Name', '<no name>')
-            joint_type = getattr(joint, 'JointType', 'revolute').lower()
-            log_message(f'{joint_prefix}{"└─ " if joint_is_last else "├─ "}Joint: {joint_name} (type: {joint_type})')
-            # Determine the child link (the one that is not the current link)
-            if ref1 == link.name and ref2 and ref2 != link.name:
-                child_link_name = ref2
-            elif ref2 == link.name and ref1 and ref1 != link.name:
-                child_link_name = ref1
-            else:
-                continue
-            next_prefix = joint_prefix + ('    ' if joint_is_last else '│   ')
-            new_visited_joints = visited_joints.copy()
-            new_visited_joints.add(joint_id)
-            # Use the links dict from build_assembly_tree closure
-            if child_link_name in links:
-                print_link_tree(links[child_link_name], next_prefix, True, visited_links.copy(), new_visited_joints)
+def print_assembly_tree(root_link):
     log_message('--- ASSEMBLY TREE ---')
-    for idx, root in enumerate(root_links):
-        is_last = (idx == len(root_links) - 1)
-        print_link_tree(root, '', is_last)
+    def print_link(link, depth=0, visited=None):
+        if visited is None:
+            visited = set()
+        if link.name in visited:
+            log_message('  ' * depth + f'[CYCLE] {link.name}')
+            return
+        log_message('  ' * depth + f'Link: {link.name}')
+        visited.add(link.name)
+        print(link.joints)
+        for joint in link.joints:
+            joint_name = getattr(joint, 'name', '<no name>')
+            joint_type = getattr(joint, 'joint_type', '<none>')
+            child_link = joint.child_link
+            child_link_name = child_link.name if child_link else '<no child>'
+            log_message('  ' * (depth + 1) + f'Joint: {joint_name} (type: {joint_type}) -> {child_link_name}')
+            if child_link:
+                print_link(child_link, depth + 2, visited.copy())
+    print_link(root_link)
     log_newline()
 
 DOC = App.ActiveDocument
@@ -211,6 +185,7 @@ def build_tree(joint_objs):
     parent_to_joints = {}
     child_to_joint = {}
     for joint in joint_objs:
+        log_message(joint.Name)
         reference1 = getattr(joint, "Reference1", None)
         reference2 = getattr(joint, "Reference2", None)
         parent = get_link_name_from_reference(reference1)
@@ -451,46 +426,77 @@ def build_assembly_tree(robot_parts, joint_objs):
     # Build all FreeCADLink objects
     links = {part.Name: FreeCADLink(part) for part in robot_parts}
     log_message('[DEBUG] Link names in links dict: ' + ', '.join(links.keys()))
-    # Build all FreeCADJoint objects and set .child_link
-    joints = []
+    # 1. Identify the root joint (grounded)
+    root_joint = None
     for joint_obj in joint_objs:
-        parent_name = get_link_name_from_reference(getattr(joint_obj, "Reference1", None))
-        child_name = get_link_name_from_reference(getattr(joint_obj, "Reference2", None))
-        joint_debug = f"[DEBUG] Joint {getattr(joint_obj, 'Name', '<no name>')}: Reference1={parent_name}, Reference2={child_name}"
-        if parent_name in links and child_name in links:
-            joint_debug += " [BOTH FOUND]"
-        else:
-            if parent_name not in links:
-                joint_debug += f" [parent_name '{parent_name}' NOT FOUND]"
-            if child_name not in links:
-                joint_debug += f" [child_name '{child_name}' NOT FOUND]"
-        log_message(joint_debug)
-        if parent_name and child_name and parent_name in links and child_name in links:
-            joint = FreeCADJoint(joint_obj, parent_name)
-            joint.child_link = links[child_name]
-            joints.append(joint)
-    # Set .joints for each link (parent only)
-    for joint in joints:
-        parent_link = links[joint.link_name]
-        parent_link.joints.append(joint)
-    # Find the grounded joint and link
-    grounded_joint, grounded_link = find_grounded_joint_and_link(joint_objs, links)
-    if grounded_link:
-        log_message(f"[DEBUG] Grounded joint found: {getattr(grounded_joint, 'Name', None)} grounding {grounded_link.name}")
-        return [grounded_link], links, joints
-    else:
-        log_message("[DEBUG] No grounded joint found!")
-        return [], links, joints
+        name = getattr(joint_obj, 'Name', '').lower()
+        joint_type = getattr(joint_obj, 'JointType', '').lower()
+        if 'ground' in name or 'ground' in joint_type:
+            root_joint = joint_obj
+            break
+    if not root_joint:
+        log_message('[DEBUG] No grounded joint found!')
+        return None, links, []
+    # 2. Find the single link this joint attaches to (from Placement1 or Placement2)
+    ref1 = get_link_name_from_reference(getattr(root_joint, 'Reference1', None))
+    ref2 = get_link_name_from_reference(getattr(root_joint, 'Reference2', None))
+    candidates = [ref for ref in [ref1, ref2] if ref in links]
+    if getattr(root_joint, 'ObjectToGround', None):
+        obj_to_ground = getattr(root_joint, 'ObjectToGround', None)
+        if hasattr(obj_to_ground, 'Name') and obj_to_ground.Name in links:
+            candidates.append(obj_to_ground.Name)
+    candidates = list(set(candidates))
+    if len(candidates) != 1:
+        raise RuntimeError(f"ERROR: Expected exactly one grounded link, found: {candidates}")
+    root_link = links[candidates[0]]
+    log_message(f"[DEBUG] Grounded joint found: {getattr(root_joint, 'Name', None)} grounding {root_link.name}")
+    # 3. Recursively build the tree
+    visited_links = set()
+    def build_tree(link):
+        if link.name in visited_links:
+            return
+        visited_links.add(link.name)
+        link.joints = []
+        for joint_obj in joint_objs:
+            ref1 = get_link_name_from_reference(getattr(joint_obj, 'Reference1', None))
+            ref2 = get_link_name_from_reference(getattr(joint_obj, 'Reference2', None))
+            if link.name == ref1 or link.name == ref2:
+                # 4. Attach this joint to the link
+                joint = FreeCADJoint(joint_obj, link.name)
+                # 5. Find the OTHER link
+                other_link_name = ref2 if link.name == ref1 else ref1
+                if other_link_name and other_link_name in links:
+                    joint.child_link = links[other_link_name]
+                    link.joints.append(joint)
+                    # 6. Recurse
+                    build_tree(joint.child_link)
+    build_tree(root_link)
+    return root_link, links, []
 
 # New traversal using the object graph
 
-def traverse_link(f, link, parent_joint=None, is_root=False, parent_name=None):
+def traverse_link(f, link, parent_joint=None, is_root=False, parent_name=None, visited_links=None, visited_joints=None):
+    if visited_links is None:
+        visited_links = set()
+    if visited_joints is None:
+        visited_joints = set()
+    # If we've already fully processed this link, skip
+    if link.name in visited_links:
+        log_message(f'[CYCLE] Skipping already visited link: {link.name}')
+        return
     handle_link(f, link, prev_joint=parent_joint, is_root=is_root, parent_name=parent_name)
     for joint in link.joints:
+        joint_id = id(joint)
+        if joint_id in visited_joints:
+            continue
+        visited_joints_new = visited_joints.copy()
+        visited_joints_new.add(joint_id)
         # Write the joint
         handle_joint(f, parent_joint, joint, link.name, joint.child_link.name)
         # Recursively traverse the child link
-        traverse_link(f, joint.child_link, parent_joint=joint, is_root=False, parent_name=link.name)
+        traverse_link(f, joint.child_link, parent_joint=joint, is_root=False, parent_name=link.name, visited_links=visited_links.copy(), visited_joints=visited_joints_new)
+    # Only mark the link as visited after all joints/children are processed
+    visited_links.add(link.name)
 
 # --- Replace old traversal in assemblyToURDF_tree ---
 def assemblyToURDF_tree():
@@ -523,12 +529,13 @@ def assemblyToURDF_tree():
     for joint in joint_objs:
         print(f"  {getattr(joint, 'Name', '<no name>')}: JointType = {getattr(joint, 'JointType', '<none>')}")
     # Build the assembly tree
-    grounded_links, links, joints = build_assembly_tree(robot_parts, joint_objs)
-    print_assembly_tree(grounded_links, joint_objs, links) # Pass links as argument
+    root_link, links, joints = build_assembly_tree(robot_parts, joint_objs)
+    if root_link:
+        print_assembly_tree(root_link)
     urdf_file = os.path.join(EXPORT_DIR, "robot.urdf")
     with open(urdf_file, "w") as f:
         f.write(f'<robot name="{ROBOT_NAME}">\n\n')
-        for root_link in grounded_links: # Traverse grounded links as they are the roots
+        if root_link:
             traverse_link(f, root_link, parent_joint=None, is_root=True, parent_name="world")
         f.write('</robot>\n')
     print(f"\nExport complete!\nURDF exported to: {urdf_file}")
