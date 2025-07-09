@@ -1,3 +1,17 @@
+--- OBJECT GRAPH (tree) ---
+├─ STS3126
+│   └─ Joint: Joint004 (type: revolute)
+│       └─ Servo_Horn_to_Grid
+│           └─ Joint: Joint003 (type: fixed)
+│               └─ _x007
+│                   └─ Joint: Joint002 (type: fixed)
+│                       └─ Servo_Case_to_Grid
+└─ STS3125
+    ├─ Joint: Joint (type: revolute)
+    │   └─ Foot_V2
+    └─ Joint: Joint005 (type: revolute)
+        └─ Servo_Case_to_Grid
+
 Does this look right for LINK (root) 'Body010' relative to 'world'?
   Translated by: X: 0 Y: 0 Z: 0
   Rotated by:   X: 0.0° Y: 0.0° Z: 0.0°

@@ -24,15 +24,35 @@ def log_newline():
 
 # --- Object graph printer ---
 def print_object_graph(links):
-    log_message('--- OBJECT GRAPH ---')
+    def print_link_tree(link, prefix='', is_last=True, visited=None):
+        if visited is None:
+            visited = set()
+        if link.name in visited:
+            log_message(f'{prefix}{"└─ " if is_last else "├─ "}[CYCLE] {link.name}')
+            return
+        visited.add(link.name)
+        log_message(f'{prefix}{"└─ " if is_last else "├─ "}{link.name}')
+        child_count = len(link.joints)
+        for idx, joint in enumerate(link.joints):
+            joint_is_last = (idx == child_count - 1)
+            joint_prefix = prefix + ('    ' if is_last else '│   ')
+            log_message(f'{joint_prefix}{"└─ " if joint_is_last else "├─ "}Joint: {joint.name} (type: {joint.joint_type})')
+            # Recurse into child link
+            if joint.child_link:
+                next_prefix = joint_prefix + ('    ' if joint_is_last else '│   ')
+                print_link_tree(joint.child_link, next_prefix, True, visited)
+    log_message('--- OBJECT GRAPH (tree) ---')
+    # Find all root links (those with no parent joints)
+    all_links = set(links.values())
+    child_links = set()
     for link in links.values():
-        log_message(f'Link: {link.name}')
-        if link.joints:
-            for joint in link.joints:
-                child = joint.child_link.name if joint.child_link else 'None'
-                log_message(f'  Joint: {joint.name} (type: {joint.joint_type}) -> Child Link: {child}')
-        else:
-            log_message('  (no child joints)')
+        for joint in link.joints:
+            if joint.child_link:
+                child_links.add(joint.child_link)
+    root_links = [l for l in all_links if l not in child_links]
+    for idx, root in enumerate(root_links):
+        is_last = (idx == len(root_links) - 1)
+        print_link_tree(root, '', is_last)
     log_newline()
 
 DOC = App.ActiveDocument
