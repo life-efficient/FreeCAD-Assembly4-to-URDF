@@ -110,16 +110,21 @@ class FreeCADLink:
         self.joints = []  # List of FreeCADJoint objects
 
 class URDFLink:
-    def __init__(self, freecad_link, mesh_offset=None, is_root=False, parent_name=None):
+    def __init__(self, freecad_link, mesh_offset=None, is_root=False, parent_name=None, parent_joint=None):
         self.name = freecad_link.name
         self.body = freecad_link.body
         self.mesh_path = export_mesh(self.body, self.name)
         self.inertial = get_inertial(self.body, self.name)
         self.is_root = is_root
         self.parent_name = parent_name
-        if is_root or mesh_offset is None:
+        if is_root:
+            log_message("root link - skipping alignment")
             self.xyz, self.rpy = "0 0 0", "0 0 0"
         else:
+            assert parent_joint is not None, f"Non-root link {self.name} requires a parent_joint for alignment"
+            assert hasattr(parent_joint, 'parent_placement') and parent_joint.parent_placement is not None, f"parent_joint for {self.name} missing parent_placement"
+            assert hasattr(parent_joint, 'child_placement') and parent_joint.child_placement is not None, f"parent_joint for {self.name} missing child_placement"
+            mesh_offset = get_mesh_alignment(parent_joint.parent_placement, parent_joint.child_placement)
             self.xyz, self.rpy = format_placement(mesh_offset, scale=SCALE)
 
     def write(self, f):
@@ -187,9 +192,11 @@ class URDFJoint:
     def __init__(self, prev_joint, curr_joint, parent_link=None, child_link=None):
         self.freecad_joint = curr_joint
         self.joint_type = curr_joint.joint_type
-        # Compose the transform: prev_joint.from_parent_origin.inverse() * curr_joint.from_child_origin
+        # Compose the transform: align the joint origin to the parent joint's frame
         if prev_joint is not None and hasattr(prev_joint, 'from_parent_origin') and prev_joint.from_parent_origin is not None and curr_joint.from_child_origin is not None:
-            self.urdf_transform = prev_joint.from_parent_origin.inverse().multiply(curr_joint.from_child_origin)
+            alignment = get_origin_alignment(prev_joint.from_parent_origin, curr_joint.from_parent_origin)
+            aligned_child = alignment.multiply(curr_joint.from_child_origin)
+            self.urdf_transform = prev_joint.from_parent_origin.inverse().multiply(aligned_child)
         else:
             self.urdf_transform = curr_joint.from_child_origin
         # Axis in parent frame
@@ -360,7 +367,7 @@ def create_urdf(f, link, parent_joint=None, is_root=False, parent_name=None, vis
         log_message(f'[CYCLE] Skipping already visited link: {link.name}')
         return
     # Print URDFLink state before writing
-    urdf_link = URDFLink(link, mesh_offset=parent_joint.parent_placement.inverse() if parent_joint and hasattr(parent_joint, 'parent_placement') and parent_joint.parent_placement is not None else None, is_root=is_root, parent_name=parent_name)
+    urdf_link = URDFLink(link, is_root=is_root, parent_name=parent_name, parent_joint=parent_joint)
     log_message(str(urdf_link))
     urdf_link.write(f)
     for joint in link.joints:

@@ -27,43 +27,43 @@ URDFJoint(
 )
 URDFLink(
   name=STS3125,
-  xyz="0.0 0.0 18.5"
+  xyz="0.0 0.0 -19.0"
   rpy="0.0 0.0 1.570796"
 )
 URDFJoint(
   name=STS3125-Servo_Case_to_Grid_fixed,
   parent_link=STS3125,
   child_link=Servo_Case_to_Grid,
-  xyz="0.0 0.0 34.5"
-  rpy="-1.570796 0.0 -1.570796"
+  xyz="0.0 16.0 18.5"
+  rpy="3.141593 0.0 0.0"
 )
 URDFLink(
   name=Servo_Case_to_Grid,
-  xyz="35.0 -16.0 0.0"
+  xyz="0.0 16.0 0.0"
   rpy="0.0 1.570796 3.141593"
 )
 URDFJoint(
   name=Servo_Case_to_Grid-_x6_fixed,
   parent_link=Servo_Case_to_Grid,
   child_link=_x6,
-  xyz="30.0 -26.0 -50.0"
-  rpy="0.0 1.570796 3.141593"
+  xyz="25.0 -21.0 50.0"
+  rpy="0.0 -1.570796 1.570796"
 )
 URDFLink(
   name=_x6,
-  xyz="8.0 -5.0 16.0"
-  rpy="-1.570796 0.0 -1.570796"
+  xyz="-50.0 -10.0 -5.0"
+  rpy="0.0 -1.570796 -4.712389"
 )
 URDFJoint(
   name=_x6-Servo_Horn_to_Grid_fixed,
   parent_link=_x6,
   child_link=Servo_Horn_to_Grid,
-  xyz="-17.620499 -5.000001 37.5"
-  rpy="0.0 0.0 1.570796"
+  xyz="-17.620499 -26.5 15.999999"
+  rpy="0.0 0.0 -3.141593"
 )
 URDFLink(
   name=Servo_Horn_to_Grid,
-  xyz="-5.0 0.0 5.0"
+  xyz="25.620499 -21.5 -1e-06"
   rpy="3.141593 0.0 -1.570796"
 )
 URDFJoint(
@@ -71,10 +71,10 @@ URDFJoint(
   parent_link=Servo_Horn_to_Grid,
   child_link=STS3126,
   xyz="-5.0 0.0 24.0"
-  rpy="3.141593 0.0 0.0"
+  rpy="0.0 0.0 0.0"
 )
 URDFLink(
   name=STS3126,
-  xyz="0.0 0.0 18.5"
+  xyz="0.0 0.0 -19.0"
   rpy="0.0 0.0 1.570796"
 )
