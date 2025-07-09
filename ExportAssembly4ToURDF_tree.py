@@ -350,9 +350,7 @@ def build_assembly_tree(robot_parts, joint_objs):
     build_tree(root_link)
     return root_link, links, []
 
-# New traversal using the object graph
-
-def traverse_link(f, link, parent_joint=None, is_root=False, parent_name=None, visited_links=None, visited_joints=None):
+def create_urdf(f, link, parent_joint=None, is_root=False, parent_name=None, visited_links=None, visited_joints=None):
     if visited_links is None:
         visited_links = set()
     if visited_joints is None:
@@ -418,7 +416,7 @@ def assemblyToURDF_tree():
     with open(urdf_file, "w") as f:
         f.write(f'<robot name="{ROBOT_NAME}">\n\n')
         if root_link:
-            traverse_link(f, root_link, parent_joint=None, is_root=True, parent_name="world")
+            create_urdf(f, root_link, parent_joint=None, is_root=True, parent_name="world")
         f.write('</robot>\n')
     print(f"\nExport complete!\nURDF exported to: {urdf_file}")
 
