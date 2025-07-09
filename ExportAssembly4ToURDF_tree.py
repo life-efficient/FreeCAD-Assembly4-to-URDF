@@ -23,7 +23,8 @@ def log_newline():
         f.write('\n')
 
 # --- Object graph printer ---
-def print_object_graph(links):
+def print_object_graph(links, joint_objs):
+    from freecad_helpers import get_link_name_from_reference
     def print_link_tree(link, prefix='', is_last=True, visited=None):
         if visited is None:
             visited = set()
@@ -32,26 +33,43 @@ def print_object_graph(links):
             return
         visited.add(link.name)
         log_message(f'{prefix}{"└─ " if is_last else "├─ "}{link.name}')
-        child_count = len(link.joints)
-        for idx, joint in enumerate(link.joints):
+        # Find all joints where this link is either Reference1 or Reference2
+        attached_joints = []
+        for joint in joint_objs:
+            ref1 = get_link_name_from_reference(getattr(joint, "Reference1", None))
+            ref2 = get_link_name_from_reference(getattr(joint, "Reference2", None))
+            if ref1 == link.name or ref2 == link.name:
+                attached_joints.append((joint, ref1, ref2))
+        # For each attached joint, determine the direction and traverse to the other link
+        child_count = len(attached_joints)
+        for idx, (joint, ref1, ref2) in enumerate(attached_joints):
             joint_is_last = (idx == child_count - 1)
             joint_prefix = prefix + ('    ' if is_last else '│   ')
-            log_message(f'{joint_prefix}{"└─ " if joint_is_last else "├─ "}Joint: {joint.name} (type: {joint.joint_type})')
-            # Recurse into child link
-            if joint.child_link:
-                next_prefix = joint_prefix + ('    ' if joint_is_last else '│   ')
-                print_link_tree(joint.child_link, next_prefix, True, visited)
+            joint_name = getattr(joint, 'Name', '<no name>')
+            joint_type = getattr(joint, 'JointType', 'revolute').lower()
+            log_message(f'{joint_prefix}{"└─ " if joint_is_last else "├─ "}Joint: {joint_name} (type: {joint_type})')
+            # Determine the child link (the one that is not the current link)
+            if ref1 == link.name and ref2 and ref2 in links and ref2 != link.name:
+                child_link = links[ref2]
+            elif ref2 == link.name and ref1 and ref1 in links and ref1 != link.name:
+                child_link = links[ref1]
+            else:
+                continue  # skip if no valid child
+            next_prefix = joint_prefix + ('    ' if joint_is_last else '│   ')
+            print_link_tree(child_link, next_prefix, True, visited)
     log_message('--- OBJECT GRAPH (tree) ---')
-    # Find all root links (those with no parent joints)
-    all_links = set(links.values())
-    child_links = set()
-    for link in links.values():
-        for joint in link.joints:
-            if joint.child_link:
-                child_links.add(joint.child_link)
-    root_links = [l for l in all_links if l not in child_links]
-    for idx, root in enumerate(root_links):
-        is_last = (idx == len(root_links) - 1)
+    # Find all grounded links (those attached to grounded joints)
+    grounded_links = set()
+    for joint in joint_objs:
+        is_grounded = (
+            getattr(joint, "Reference1", None) is None and getattr(joint, "Reference2", None) is None
+        )
+        if is_grounded:
+            obj_to_ground = getattr(joint, "ObjectToGround", None)
+            if obj_to_ground and hasattr(obj_to_ground, "Name") and obj_to_ground.Name in links:
+                grounded_links.add(links[obj_to_ground.Name])
+    for idx, root in enumerate(grounded_links):
+        is_last = (idx == len(grounded_links) - 1)
         print_link_tree(root, '', is_last)
     log_newline()
 
@@ -479,7 +497,7 @@ def assemblyToURDF_tree():
                 grounded_links.append(obj_to_ground.Name)
     # Build the object graph
     links, joints = build_object_graph(robot_parts, joint_objs)
-    print_object_graph(links)
+    print_object_graph(links, joint_objs)
     urdf_file = os.path.join(EXPORT_DIR, "robot.urdf")
     with open(urdf_file, "w") as f:
         f.write(f'<robot name="{ROBOT_NAME}">\n\n')
