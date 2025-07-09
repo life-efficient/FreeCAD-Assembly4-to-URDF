@@ -65,7 +65,7 @@ def print_object_graph(links, joint_objs):
             new_visited_joints = visited_joints.copy()
             new_visited_joints.add(joint_id)
             print_link_tree(child_link, next_prefix, True, visited_links.copy(), new_visited_joints)
-    log_message('--- OBJECT GRAPH (tree) ---')
+    log_message('--- ASSEMBLY TREE ---')
     # Find all grounded links (those attached to grounded joints)
     grounded_links = set()
     for joint in joint_objs:
