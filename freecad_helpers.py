@@ -2,6 +2,10 @@ import FreeCAD as App
 import Mesh
 import os
 
+# --- Logging helpers (moved from ExportAssembly4ToURDF_tree.py) ---
+# Remove log_message and log_newline from this file and import from logging_utils
+from logging_utils import log_message, log_newline
+
 ROBOT_NAME = "my_robot"
 EXPORT_DIR = os.path.join(os.path.expanduser("~"), "projects/FreeCAD-Designs", "macros", ROBOT_NAME)
 MESH_FORMAT = "stl"
@@ -89,12 +93,13 @@ def get_origin_alignment(from_placement, to_placement):
     """
     difference = from_placement.inverse().multiply(to_placement)
     rotation_difference = difference.Rotation
+    log_message(f"[DEBUG] get_origin_alignment: from={from_placement}, to={to_placement}, axis={rotation_difference.Axis}, angle={rotation_difference.Angle}")
     return App.Placement(App.Vector(0, 0, 0), rotation_difference)
 
 
-def get_mesh_alignment(parent_joint_placement, child_link_placement):
+def get_mesh_offset(parent_joint_placement, child_link_placement):
     """
-    Compute the mesh alignment placement for URDF export.
+    Compute the mesh offset placement for URDF export.
     This rotates the child link's frame to align with the parent joint's frame, then inverts for URDF mesh offset.
     Returns a FreeCAD.Placement.
     """

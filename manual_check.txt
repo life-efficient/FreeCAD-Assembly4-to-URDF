@@ -26,11 +26,13 @@ URDFJoint(
   xyz="0.0 -19.0 0.0"
   rpy="0.0 0.0 1.570796"
 )
+[DEBUG] get_origin_alignment: from=Placement [Pos=(0,-18.5,4.1e-15), Yaw-Pitch-Roll=(0,0,-90)], to=Placement [Pos=(2e-16,-19,-4.6e-15), Yaw-Pitch-Roll=(0,0,90)], axis=Vector (1.0, 0.0, 0.0), angle=3.141592653589793
 URDFLink(
   name=STS3125,
   xyz="0.0 0.0 -19.0"
   rpy="0.0 0.0 1.570796"
 )
+[DEBUG] get_origin_alignment: from=Placement [Pos=(0,-18.5,4.1e-15), Yaw-Pitch-Roll=(0,0,-90)], to=Placement [Pos=(-1e-16,-16,35), Yaw-Pitch-Roll=(0,90,-180)], axis=Vector (-0.5773502691896257, -0.577350269189626, 0.5773502691896258), angle=2.0943951023931953
 URDFJoint(
   name=STS3125-Servo_Case_to_Grid_fixed,
   parent_link=STS3125,
@@ -38,11 +40,13 @@ URDFJoint(
   xyz="0.0 16.0 18.5"
   rpy="3.141593 0.0 0.0"
 )
+[DEBUG] get_origin_alignment: from=Placement [Pos=(-1e-16,-16,35), Yaw-Pitch-Roll=(0,90,-180)], to=Placement [Pos=(-3.4e-15,16,0), Yaw-Pitch-Roll=(0,-90,180)], axis=Vector (8.659560562354932e-17, -1.0, 2.512060585808453e-33), angle=3.141592653589793
 URDFLink(
   name=Servo_Case_to_Grid,
   xyz="0.0 16.0 0.0"
   rpy="0.0 1.570796 3.141593"
 )
+[DEBUG] get_origin_alignment: from=Placement [Pos=(-1e-16,-16,35), Yaw-Pitch-Roll=(0,90,-180)], to=Placement [Pos=(-5,16,-8), Yaw-Pitch-Roll=(0,-90,-270)], axis=Vector (-2.2204460492503126e-16, 0.7071067811865475, 0.7071067811865476), angle=3.141592653589793
 URDFJoint(
   name=Servo_Case_to_Grid-_x6_fixed,
   parent_link=Servo_Case_to_Grid,
@@ -50,11 +54,13 @@ URDFJoint(
   xyz="25.0 -21.0 50.0"
   rpy="0.0 -1.570796 1.570796"
 )
+[DEBUG] get_origin_alignment: from=Placement [Pos=(-5,16,-8), Yaw-Pitch-Roll=(0,-90,-270)], to=Placement [Pos=(50,10,5), Yaw-Pitch-Roll=(0,0,0)], axis=Vector (0.5773502691896258, -0.5773502691896258, 0.5773502691896257), angle=4.188790204786391
 URDFLink(
   name=_x6,
   xyz="-50.0 -10.0 -5.0"
   rpy="0.0 -1.570796 -4.712389"
 )
+[DEBUG] get_origin_alignment: from=Placement [Pos=(-5,16,-8), Yaw-Pitch-Roll=(0,-90,-270)], to=Placement [Pos=(-5,5,-3.6e-15), Yaw-Pitch-Roll=(180,3.14128e-15,-90)], axis=Vector (2.299347170293092e-17, 1.0803612399460188e-16, -1.0), angle=4.71238898038469
 URDFJoint(
   name=_x6-Servo_Horn_to_Grid_fixed,
   parent_link=_x6,
@@ -62,11 +68,13 @@ URDFJoint(
   xyz="-17.620499 -26.5 15.999999"
   rpy="0.0 0.0 -3.141593"
 )
+[DEBUG] get_origin_alignment: from=Placement [Pos=(-5,5,-3.6e-15), Yaw-Pitch-Roll=(180,3.14128e-15,-90)], to=Placement [Pos=(5.49084e-07,-21.5,-25.6205), Yaw-Pitch-Roll=(0,-90,180)], axis=Vector (0.5773502691896258, -0.5773502691896258, -0.5773502691896257), angle=2.0943951023931953
 URDFLink(
   name=Servo_Horn_to_Grid,
   xyz="25.620499 -21.5 -1e-06"
   rpy="3.141593 0.0 -1.570796"
 )
+[DEBUG] get_origin_alignment: from=Placement [Pos=(-5,5,-3.6e-15), Yaw-Pitch-Roll=(180,3.14128e-15,-90)], to=Placement [Pos=(-1.8e-15,-18.5,0), Yaw-Pitch-Roll=(0,0,-90)], axis=Vector (2.7412875306880076e-17, 1.0, 1.2116883882008518e-16), angle=3.141592653589793
 URDFJoint(
   name=Servo_Horn_to_Grid-STS3126_revolute,
   parent_link=Servo_Horn_to_Grid,
@@ -74,6 +82,7 @@ URDFJoint(
   xyz="-5.0 0.0 24.0"
   rpy="0.0 0.0 0.0"
 )
+[DEBUG] get_origin_alignment: from=Placement [Pos=(-1.8e-15,-18.5,0), Yaw-Pitch-Roll=(0,0,-90)], to=Placement [Pos=(-3.6e-15,-19,-2.84e-14), Yaw-Pitch-Roll=(0,-0,90)], axis=Vector (1.0, -0.0, 0.0), angle=3.141592653589793
 URDFLink(
   name=STS3126,
   xyz="0.0 0.0 -19.0"

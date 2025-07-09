@@ -2,30 +2,14 @@ import FreeCAD as App
 import os
 
 from utils_io import ensure_dir
-from freecad_helpers import export_mesh, get_inertial, get_link_name_from_reference, get_origin_alignment, get_mesh_alignment
+from freecad_helpers import export_mesh, get_inertial, get_link_name_from_reference, get_origin_alignment, get_mesh_offset
 from utils_math import format_vector, format_placement
+from logging_utils import log_message, log_newline
 
 # --- Logging helpers ---
 MANUAL_CHECK_FILE = os.path.join(os.path.dirname(__file__), "manual_check.txt")
 with open(MANUAL_CHECK_FILE, 'w', encoding='utf-8') as f:
     f.write('')  # Clear file at start
-
-def log_message(msg):
-    # Safety check: prevent infinite loops/runaway logging
-    MANUAL_CHECK_FILE = os.path.join(os.path.dirname(__file__), "manual_check.txt")
-    try:
-        with open(MANUAL_CHECK_FILE, 'r', encoding='utf-8') as f:
-            line_count = sum(1 for _ in f)
-        assert line_count < 100, f"manual_check.txt exceeds 100 lines ({line_count}) -- possible infinite loop!"
-    except FileNotFoundError:
-        pass
-    print(msg)
-    with open(MANUAL_CHECK_FILE, 'a', encoding='utf-8') as f:
-        f.write(msg + '\n')
-
-def log_newline():
-    with open(MANUAL_CHECK_FILE, 'a', encoding='utf-8') as f:
-        f.write('\n')
 
 # --- Assembly tree printer ---
 def print_assembly_tree(root_link):
@@ -124,7 +108,7 @@ class URDFLink:
             assert parent_joint is not None, f"Non-root link {self.name} requires a parent_joint for alignment"
             assert hasattr(parent_joint, 'parent_placement') and parent_joint.parent_placement is not None, f"parent_joint for {self.name} missing parent_placement"
             assert hasattr(parent_joint, 'child_placement') and parent_joint.child_placement is not None, f"parent_joint for {self.name} missing child_placement"
-            mesh_offset = get_mesh_alignment(parent_joint.parent_placement, parent_joint.child_placement)
+            mesh_offset = get_mesh_offset(parent_joint.parent_placement, parent_joint.child_placement)
             self.xyz, self.rpy = format_placement(mesh_offset, scale=SCALE)
 
     def write(self, f):
