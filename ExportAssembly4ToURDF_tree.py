@@ -175,11 +175,16 @@ class URDFJoint:
     def __init__(self, prev_joint, curr_joint, parent_link=None, child_link=None):
         self.freecad_joint = curr_joint
         self.joint_type = curr_joint.joint_type
-        # Compose the transform: align the joint origin to the parent joint's frame
-        if prev_joint is not None and hasattr(prev_joint, 'from_parent_origin') and prev_joint.from_parent_origin is not None and curr_joint.from_child_origin is not None:
-            alignment = get_origin_alignment(prev_joint.from_parent_origin, curr_joint.from_parent_origin)
-            aligned_child = alignment.multiply(curr_joint.from_child_origin)
-            self.urdf_transform = prev_joint.from_parent_origin.inverse().multiply(aligned_child)
+        # Compose the transform: align the joint origin to the parent joint's frame, including axis alignment
+        if prev_joint is not None and hasattr(prev_joint, 'from_child_origin') and prev_joint.from_child_origin is not None and curr_joint.from_parent_origin is not None:
+            # Insert axis alignment between the two origins
+            axis_alignment = get_origin_alignment(prev_joint.from_child_origin, curr_joint.from_parent_origin)
+            aligned = prev_joint.from_child_origin.inverse().multiply(axis_alignment).multiply(curr_joint.from_parent_origin)
+            # Now apply the child joint's local transform
+            if curr_joint.from_child_origin is not None:
+                self.urdf_transform = aligned.multiply(curr_joint.from_child_origin)
+            else:
+                self.urdf_transform = aligned
         else:
             self.urdf_transform = curr_joint.from_child_origin
         # Axis in parent frame
