@@ -415,11 +415,15 @@ def build_assembly_tree(robot_parts, joint_objs):
                 log_message(f"[TREE BUILD] Link '{link.name}' found joint '{joint_name}' (type: {joint_type}) to '{other_link_name}'")
                 joint = FreeCADJoint(joint_obj, link.name)
                 joint.child_link = links[other_link_name]
+
+                # SKIP JOINTS ALREADY VISITED - these are the joints that are already in the tree and are (grand)parents of this one
                 joint_id = id(joint_obj)
                 if joint_id in visited_joints:
                     log_message(f"[TREE BUILD] Skipping already visited joint '{joint_name}'")
                     continue
                 visited_joints.add(joint_id)
+
+                # ADD JOINT TO LINK AND RECURSE
                 log_message(f"[TREE BUILD] Adding joint '{joint_name}' to link '{link.name}'")
                 log_message(f"[TREE BUILD] Setting child_link of joint '{joint_name}' to '{other_link_name}'")
                 link.joints.append(joint)
