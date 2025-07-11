@@ -22,7 +22,7 @@ URDFLink(
   rpy="0.0 0.0 0.0"
 )
 
-[PROCESSING JOINT] Joint
+[PROCESSING JOINT] Foot_V2-STS3125_revolute
 [DEBUG] prev_joint is None - this joint must be attached to the root link
 URDFJoint(
   name=Foot_V2-STS3125_revolute,
@@ -34,105 +34,85 @@ URDFJoint(
 
 [PROCESSING LINK] STS3125
 [DEBUG] parent name: Foot_V2
-[DEBUG][mesh_offset] from_parent_origin: Placement [Pos=(0.0, -18.5, 0.0), Axis/Angle=(-1.0, 0.0, 0.0), angle=1.5707963267948968]
-[DEBUG][mesh_offset] from_child_origin: Placement [Pos=(0.0, -18.99999999999999, 0.0), Axis/Angle=(1.0, 0.0, 0.0), angle=1.5707963267948966]
-[DEBUG] get_origin_alignment: axis=(1.0, 0.0, 0.0), angle=3.141592653589793
-[DEBUG][mesh_offset] alignment: axis=1.0, 0.0, 0.0, angle=3.141592653589793
-[DEBUG][mesh_offset] aligned_child: Placement [Pos=(0.0, 0.0, 18.99999999999999), Axis/Angle=(1.0, 0.0, 0.0), angle=1.5707963267948968]
+[DEBUG] get_origin_alignment: axis=(0.0, 0.0, 1.0), angle=0.0
 URDFLink(
   name=STS3125,
-  xyz="0.0 0.0 19.0"
+  xyz="0.0 -19.0 0.0"
   rpy="0.0 0.0 1.570796"
 )
 
-[PROCESSING JOINT] Joint001
-[DEBUG] get_origin_alignment: axis=(-0.5773502691896258, 0.5773502691896257, 0.5773502691896258), angle=4.1887902047863905
+[PROCESSING JOINT] STS3125-Servo_Case_to_Grid_fixed
+[DEBUG] get_origin_alignment: axis=(-0.5773502691896257, -0.5773502691896257, 0.577350269189626), angle=2.0943951023931953
 URDFJoint(
   name=STS3125-Servo_Case_to_Grid_fixed,
   parent_link=STS3125,
   child_link=Servo_Case_to_Grid,
-  xyz="-35.0 -32.0 -19.0"
-  rpy="0.0 1.570796 -6.283185"
+  xyz="-35.0 16.0 -19.0"
+  rpy="0.0 0.0 0.0"
 )
 
 [PROCESSING LINK] Servo_Case_to_Grid
 [DEBUG] parent name: STS3125
-[DEBUG][mesh_offset] from_parent_origin: Placement [Pos=(0.0, -16.000000000000007, 35.00000000000003), Axis/Angle=(-0.7071067811865476, 0.0, 0.7071067811865476), angle=3.141592653589793]
-[DEBUG][mesh_offset] from_child_origin: Placement [Pos=(0.0, 16.000000000000007, 0.0), Axis/Angle=(0.7071067811865476, 0.0, 0.7071067811865476), angle=3.141592653589793]
-[DEBUG] get_origin_alignment: axis=(0.0, -1.0, 0.0), angle=3.141592653589793
-[DEBUG][mesh_offset] alignment: axis=0.0, -1.0, 0.0, angle=3.141592653589793
-[DEBUG][mesh_offset] aligned_child: Placement [Pos=(0.0, 16.00000000000001, 0.0), Axis/Angle=(0.7071067811865476, 0.0, -0.7071067811865476), angle=3.141592653589793]
+[DEBUG] get_origin_alignment: axis=(0.0, 1.0, 0.0), angle=3.141592653589793
 URDFLink(
   name=Servo_Case_to_Grid,
   xyz="0.0 16.0 0.0"
   rpy="0.0 1.570796 3.141593"
 )
 
-[PROCESSING JOINT] Joint002
-[DEBUG] get_origin_alignment: axis=(1.0, 0.0, 0.0), angle=4.71238898038469
+[PROCESSING JOINT] Servo_Case_to_Grid-_x6_fixed
+[DEBUG] get_origin_alignment: axis=(-1.0, 0.0, 0.0), angle=1.5707963267948968
 URDFJoint(
   name=Servo_Case_to_Grid-_x6_fixed,
   parent_link=Servo_Case_to_Grid,
   child_link=_x6,
-  xyz="-11.0 -26.0 -15.0"
+  xyz="-16.0 24.0 -5.0"
   rpy="-1.570796 0.0 -1.570796"
 )
 
 [PROCESSING LINK] _x6
 [DEBUG] parent name: Servo_Case_to_Grid
-[DEBUG][mesh_offset] from_parent_origin: Placement [Pos=(-5.000000000000001, 16.000000000000007, -8.000000000000007), Axis/Angle=(-0.5773502691896258, 0.5773502691896258, -0.5773502691896257), angle=4.188790204786391]
-[DEBUG][mesh_offset] from_child_origin: Placement [Pos=(50.00000000000001, 10.000000000000009, 4.999999999999998), Axis/Angle=(0.0, 0.0, 1.0), angle=0.0]
-[DEBUG] get_origin_alignment: axis=(0.5773502691896258, -0.5773502691896258, 0.5773502691896257), angle=4.188790204786391
-[DEBUG][mesh_offset] alignment: axis=0.5773502691896258, -0.5773502691896258, 0.5773502691896257, angle=4.188790204786391
-[DEBUG][mesh_offset] aligned_child: Placement [Pos=(-5.000000000000014, 50.00000000000001, 10.000000000000025), Axis/Angle=(0.5773502691896258, -0.5773502691896258, 0.5773502691896257), angle=4.188790204786391]
+[DEBUG] get_origin_alignment: axis=(-0.5773502691896258, 0.5773502691896258, -0.5773502691896257), angle=4.188790204786391
 URDFLink(
   name=_x6,
-  xyz="-5.0 50.0 10.0"
-  rpy="-1.570796 0.0 -1.570796"
+  xyz="-10.0 -5.0 50.0"
+  rpy="0.0 -1.570796 -4.712389"
 )
 
-[PROCESSING JOINT] Joint003
+[PROCESSING JOINT] _x6-Servo_Horn_to_Grid_fixed
 [DEBUG] get_origin_alignment: axis=(0.0, -0.7071067811865476, 0.7071067811865476), angle=3.141592653589793
 URDFJoint(
   name=_x6-Servo_Horn_to_Grid_fixed,
   parent_link=_x6,
   child_link=Servo_Horn_to_Grid,
-  xyz="-44.999999 -31.5 -35.620499"
-  rpy="0.0 -1.570796 -3.141593"
+  xyz="-45.0 -10.0 -10.0"
+  rpy="0.0 0.0 0.0"
 )
 
 [PROCESSING LINK] Servo_Horn_to_Grid
 [DEBUG] parent name: _x6
-[DEBUG][mesh_offset] from_parent_origin: Placement [Pos=(-5.000000000000014, 4.999999999999999, 0.0), Axis/Angle=(0.0, -0.7071067811865476, 0.7071067811865476), angle=3.141592653589793]
-[DEBUG][mesh_offset] from_child_origin: Placement [Pos=(5.490843229e-07, -21.500000000000018, -25.620499351813336), Axis/Angle=(0.7071067811865476, 0.0, 0.7071067811865476), angle=3.141592653589793]
-[DEBUG] get_origin_alignment: axis=(0.5773502691896258, -0.5773502691896258, -0.5773502691896257), angle=2.0943951023931953
-[DEBUG][mesh_offset] alignment: axis=0.5773502691896258, -0.5773502691896258, -0.5773502691896257, angle=2.0943951023931953
-[DEBUG][mesh_offset] aligned_child: Placement [Pos=(5.490843295357647e-07, -25.62049935181335, -21.50000000000002), Axis/Angle=(0.0, 0.7071067811865475, -0.7071067811865476), angle=3.141592653589793]
+[DEBUG] get_origin_alignment: axis=(-0.5773502691896257, 0.5773502691896258, 0.5773502691896258), angle=4.188790204786391
 URDFLink(
   name=Servo_Horn_to_Grid,
-  xyz="1e-06 -25.620499 -21.5"
+  xyz="25.620499 -1e-06 -21.5"
   rpy="3.141593 0.0 -1.570796"
 )
 
-[PROCESSING JOINT] Joint004
-[DEBUG] get_origin_alignment: axis=(-0.5773502691896257, 0.5773502691896258, -0.5773502691896257), angle=4.188790204786391
+[PROCESSING JOINT] Servo_Horn_to_Grid-STS3126_revolute
+[DEBUG] get_origin_alignment: axis=(0.5773502691896257, -0.577350269189626, 0.5773502691896258), angle=2.0943951023931953
 URDFJoint(
   name=Servo_Horn_to_Grid-STS3126_revolute,
   parent_link=Servo_Horn_to_Grid,
   child_link=STS3126,
-  xyz="25.620499 -2.5 18.499999"
-  rpy="0.0 0.0 -1.570796"
+  xyz="25.620499 -21.5 18.499999"
+  rpy="0.0 0.0 3.141593"
 )
 
 [PROCESSING LINK] STS3126
 [DEBUG] parent name: Servo_Horn_to_Grid
-[DEBUG][mesh_offset] from_parent_origin: Placement [Pos=(0.0, -18.499999999999996, 0.0), Axis/Angle=(-1.0, 0.0, 0.0), angle=1.5707963267948968]
-[DEBUG][mesh_offset] from_child_origin: Placement [Pos=(0.0, -18.99999999999999, 0.0), Axis/Angle=(1.0, 0.0, 0.0), angle=1.5707963267948966]
-[DEBUG] get_origin_alignment: axis=(1.0, 0.0, 0.0), angle=3.141592653589793
-[DEBUG][mesh_offset] alignment: axis=1.0, 0.0, 0.0, angle=3.141592653589793
-[DEBUG][mesh_offset] aligned_child: Placement [Pos=(0.0, 0.0, 18.99999999999999), Axis/Angle=(1.0, 0.0, 0.0), angle=1.5707963267948968]
+[DEBUG] get_origin_alignment: axis=(0.0, 0.0, 1.0), angle=0.0
 URDFLink(
   name=STS3126,
-  xyz="0.0 0.0 19.0"
+  xyz="0.0 -19.0 0.0"
   rpy="0.0 0.0 1.570796"
 )

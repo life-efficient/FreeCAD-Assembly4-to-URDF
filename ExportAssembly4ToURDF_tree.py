@@ -53,14 +53,14 @@ def find_joints_group(assembly):
                 return obj
     return None
 
-# --- New helper functions ---
-def compute_joint_transform(parent_placement, child_placement):
-    # Returns the URDF joint <origin> transform
-    return parent_placement.inverse().multiply(child_placement)
+# # --- New helper functions ---
+# def compute_joint_transform(parent_placement, child_placement):
+#     # Returns the URDF joint <origin> transform
+#     return parent_placement.inverse().multiply(child_placement)
 
-def compute_mesh_offset(child_placement):
-    # Returns the mesh offset transform for the link
-    return child_placement.inverse()
+# def compute_mesh_offset(child_placement):
+#     # Returns the mesh offset transform for the link
+#     return child_placement.inverse()
 
 # --- Placement extraction helper ---
 def get_joint_placements(joint, link_name):
@@ -173,6 +173,15 @@ class FreeCADJoint:
 
 class URDFJoint:
     def __init__(self, prev_joint, curr_joint, parent_link=None, child_link=None):
+        # Set parent_link and child_link from arguments or from curr_joint
+        self.parent_link = parent_link if parent_link is not None else curr_joint.link_name
+        self.child_link = child_link if child_link is not None and hasattr(child_link, 'name') else (curr_joint.child_link.name if curr_joint.child_link is not None else None)
+        # Set semantic name immediately
+        def sanitize(name):
+            return str(name).replace(' ', '_').replace('-', '_') if name else 'none'
+        self.name = f"{sanitize(self.parent_link)}-{sanitize(self.child_link)}_{curr_joint.joint_type}"
+        # Log the joint name as soon as it is computed
+        log_message(f'[PROCESSING JOINT] {self.name}')
         self.freecad_joint = curr_joint
         self.joint_type = curr_joint.joint_type
         # Compose the transform: align the joint origin to the parent joint's frame, including axis alignment
@@ -183,24 +192,18 @@ class URDFJoint:
             assert hasattr(prev_joint, 'from_child_origin') and prev_joint.from_child_origin is not None and curr_joint.from_parent_origin is not None
             # Insert axis alignment between the two origins
             axis_alignment = get_origin_alignment(prev_joint.from_child_origin, curr_joint.from_parent_origin)
-            aligned = prev_joint.from_child_origin.inverse().multiply(axis_alignment).multiply(curr_joint.from_parent_origin)
-            # Now apply the child joint's local transform
-            if curr_joint.from_child_origin is not None:
-                self.urdf_transform = aligned.multiply(curr_joint.from_child_origin)
-            else:
-                self.urdf_transform = aligned
+            # aligned = prev_joint.from_child_origin.inverse().multiply(axis_alignment).multiply(curr_joint.from_parent_origin)
+            # # Now apply the child joint's local transform
+            # if curr_joint.from_child_origin is not None:
+            #     self.urdf_transform = aligned.multiply(curr_joint.from_child_origin)
+            # else:
+            #     self.urdf_transform = aligned
+            self.urdf_transform = prev_joint.from_child_origin.inverse().multiply(axis_alignment).multiply(curr_joint.from_parent_origin)
         # Axis in parent frame
         if curr_joint.from_child_origin is not None:
             self.axis = curr_joint.from_child_origin.Rotation.multVec(App.Vector(0,0,1))
         else:
             self.axis = None
-        # Set parent_link and child_link from arguments or from curr_joint
-        self.parent_link = parent_link if parent_link is not None else curr_joint.link_name
-        self.child_link = child_link if child_link is not None and hasattr(child_link, 'name') else (curr_joint.child_link.name if curr_joint.child_link is not None else None)
-        # Set semantic name immediately
-        def sanitize(name):
-            return str(name).replace(' ', '_').replace('-', '_') if name else 'none'
-        self.name = f"{sanitize(self.parent_link)}-{sanitize(self.child_link)}_{self.joint_type}"
 
     def write(self, f, parent_link, child_link):
         joint_type = self.joint_type
@@ -371,8 +374,7 @@ def create_urdf(f, link, parent_joint=None, is_root=False, parent_name=None, vis
         visited_joints_new.add(joint_id)
         # Add a newline and log the joint being processed
         log_newline()
-        log_message(f'[PROCESSING JOINT] {getattr(joint, "name", "<no name>")}')
-        # Create URDFJoint and print its state before writing
+        # Create URDFJoint before any alignment or transform logs
         urdf_joint = URDFJoint(parent_joint, joint, parent_link=link.name, child_link=joint.child_link.name)
         log_message(str(urdf_joint))
         urdf_joint.write(f, link.name, joint.child_link.name)
