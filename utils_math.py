@@ -1,4 +1,5 @@
 import math
+from logging_utils import log_message
 
 def radians(deg):
     """Convert degrees to radians."""
@@ -22,6 +23,7 @@ def format_placement(placement, scale=0.001):
         return "0 0 0", "0 0 0"
     pos = placement.Base
     yaw, pitch, roll = placement.Rotation.toEuler()  # FreeCAD: (Z, Y, X)
+    log_message(f"[DEBUG][format_placement] yaw: {yaw}, pitch: {pitch}, roll: {roll}")
     return (
         f"{pos.x * scale:.6f} {pos.y * scale:.6f} {pos.z * scale:.6f}",
         f"{radians(roll):.6f} {radians(pitch):.6f} {radians(yaw):.6f}"

@@ -161,20 +161,6 @@ def get_mesh_offset(parent_joint):
     return mesh_offset
 
 
-def placement_to_urdf_origin(placement):
-    """
-    Convert a FreeCAD Placement to URDF <origin> xyz/rpy, accounting for transform order difference:
-    - FreeCAD: rotation then translation
-    - URDF: translation then rotation
-    So, rotate the translation vector by the inverse of the rotation.
-    Returns a new Placement with adjusted translation.
-    """
-    rot = App.Rotation(placement.Rotation)  # Copy the rotation
-    rot.invert()  # In-place inversion
-    base_rotated = rot.multVec(placement.Base)
-    return App.Placement(base_rotated, placement.Rotation)
-
-
 def get_joint_transform(prev_joint, curr_joint):
     """
     Compute the URDF joint origin transform (parent frame to joint frame).
