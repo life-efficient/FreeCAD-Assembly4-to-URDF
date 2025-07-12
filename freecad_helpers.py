@@ -161,6 +161,20 @@ def get_mesh_offset(parent_joint):
     return mesh_offset
 
 
+def placement_to_urdf_origin(placement):
+    """
+    Convert a FreeCAD Placement to URDF <origin> xyz/rpy, accounting for transform order difference:
+    - FreeCAD: rotation then translation
+    - URDF: translation then rotation
+    So, rotate the translation vector by the inverse of the rotation.
+    Returns a new Placement with adjusted translation.
+    """
+    rot = App.Rotation(placement.Rotation)  # Copy the rotation
+    rot.invert()  # In-place inversion
+    base_rotated = rot.multVec(placement.Base)
+    return App.Placement(base_rotated, placement.Rotation)
+
+
 def get_joint_transform(prev_joint, curr_joint):
     """
     Compute the URDF joint origin transform (parent frame to joint frame).
@@ -176,24 +190,14 @@ def get_joint_transform(prev_joint, curr_joint):
     log_message(f"\t[DEBUG][get_joint_transform] transform: {clean_placement(transform)}")
     return transform
 
+
 def get_joint_axis(prev_joint, curr_joint):
     """
-    Compute the joint axis in the parent frame.
+    Compute the joint axis in the joint's local frame (URDF expects axis after <origin> is applied).
     Returns a FreeCAD.Vector.
     Logs the transform and resulting axis.
     """
-    z_axis = App.Vector(0, 1, 0)
+    # Always return Z axis in joint local frame
+    z_axis = App.Vector(0, 0, 1)
+    log_message(f"[DEBUG][get_joint_axis] axis in joint local frame: (0, 0, 1)")
     return z_axis
-    if prev_joint is None:
-        # For the root joint, use the Z axis of the parent origin's rotation
-        transform = curr_joint.from_parent_origin
-        axis_parent = transform.Rotation.multVec(z_axis)
-        log_message(f"[DEBUG][get_joint_axis] Root joint: using from_parent_origin rotation: axis=({transform.Rotation.Axis.x}, {transform.Rotation.Axis.y}, {transform.Rotation.Axis.z}), angle={transform.Rotation.Angle}")
-    else:
-        # For other joints, use the Z axis of the joint transform
-        transform = get_joint_transform(prev_joint, curr_joint)
-        axis_parent = transform.Rotation.multVec(z_axis)
-        log_message(f"[DEBUG][get_joint_axis] Non-root joint: using joint_transform rotation: axis=({transform.Rotation.Axis.x}, {transform.Rotation.Axis.y}, {transform.Rotation.Axis.z}), angle={transform.Rotation.Angle}")
-    log_message(f"[DEBUG][get_joint_axis] Resulting axis: ({axis_parent.x}, {axis_parent.y}, {axis_parent.z})")
-    # Note: multiplying by (0,0,1) extracts the Z axis direction of the transform's rotation, not a fixed axis.
-    return axis_parent

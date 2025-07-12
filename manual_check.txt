@@ -25,6 +25,7 @@ URDFLink(
 [PROCESSING JOINT] Foot_V2-STS3125_revolute
 	[DEBUG][get_joint_transform] - this joint must be attached to the root link
 	[DEBUG][get_joint_transform] transform: Placement [Pos=(0.0, -18.5, 0.0), Axis/Angle=(-1.0, 0.0, 0.0), angle=1.5707963267948968]
+[DEBUG][get_joint_axis] axis in joint local frame: (0, 0, 1)
 URDFJoint(
   name=Foot_V2-STS3125_revolute,
   parent_link=Foot_V2,
@@ -105,6 +106,7 @@ URDFLink(
 [PROCESSING JOINT] Servo_Horn_to_Grid-STS3126_revolute
 [DEBUG] get_origin_alignment: axis=(-0.5773502691896257, -0.5773502691896258, -0.5773502691896257), angle=4.188790204786391
 	[DEBUG][get_joint_transform] transform: Placement [Pos=(7.1204993518133435, -21.500000000000014, -5.490843253633827e-07), Axis/Angle=(0.5773502691896258, -0.577350269189626, 0.5773502691896257), angle=4.188790204786391]
+[DEBUG][get_joint_axis] axis in joint local frame: (0, 0, 1)
 URDFJoint(
   name=Servo_Horn_to_Grid-STS3126_revolute,
   parent_link=Servo_Horn_to_Grid,
