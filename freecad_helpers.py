@@ -123,14 +123,14 @@ def get_mesh_offset(parent_joint):
     # return App.Placement(App.Vector(0,19,0), App.Rotation(0,0,0,0))
 
     # OPTION 0: Just transform
-    return parent_joint.from_child_origin
+    # return parent_joint.from_child_origin
 
     # OPTION 1: Just inverse 
     return parent_joint.from_child_origin.inverse()
 
     alignment = get_origin_alignment(
         parent_joint.from_parent_origin, 
-        parent_joint.from_child_origin.inverse()
+        parent_joint.from_child_origin
     )
 
     # OPTION 2: Align and then inverse (transformations happen from right to left)
@@ -138,7 +138,11 @@ def get_mesh_offset(parent_joint):
     # servo translated -Z by what should be +Y
 
     # OPTION 3: Align and then inverse
-    return parent_joint.from_child_origin.inverse().multiply(alignment)
+    # return parent_joint.from_child_origin.inverse().multiply(alignment)
+    # servo translated -Z by what should be +Y
+
+    # OPTION 4: Inverse then align
+    return alignment.multiply(parent_joint.from_child_origin)
     # servo translated -Z by what should be +Y
 
     # from_child_origin = parent_joint.from_child_origin
