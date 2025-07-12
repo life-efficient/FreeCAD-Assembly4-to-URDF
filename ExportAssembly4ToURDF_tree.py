@@ -2,7 +2,7 @@ import FreeCAD as App
 import os
 
 from utils_io import ensure_dir
-from freecad_helpers import export_mesh, get_inertial, get_link_name_from_reference, get_origin_alignment, get_mesh_offset
+from freecad_helpers import export_mesh, get_inertial, get_link_name_from_reference, get_mesh_offset, get_joint_transform, get_joint_axis
 from utils_math import format_vector, format_placement
 from logging_utils import log_message, log_newline
 
@@ -173,35 +173,17 @@ class FreeCADJoint:
 
 class URDFJoint:
     def __init__(self, prev_joint, curr_joint, parent_link=None, child_link=None):
-        # Set parent_link and child_link from arguments or from curr_joint
         self.parent_link = parent_link if parent_link is not None else curr_joint.link_name
         self.child_link = child_link if child_link is not None and hasattr(child_link, 'name') else (curr_joint.child_link.name if curr_joint.child_link is not None else None)
-        # Set semantic name immediately
         def sanitize(name):
             return str(name).replace(' ', '_').replace('-', '_') if name else 'none'
         self.name = f"{sanitize(self.parent_link)}-{sanitize(self.child_link)}_{curr_joint.joint_type}"
-        # Log the joint name as soon as it is computed
         log_message(f'[PROCESSING JOINT] {self.name}')
         self.freecad_joint = curr_joint
         self.joint_type = curr_joint.joint_type
-        # Compose the transform: align the joint origin to the parent joint's frame, including axis alignment
-        if prev_joint is None:
-            log_message(f"[DEBUG] prev_joint is None - this joint must be attached to the root link")
-            self.urdf_transform = curr_joint.from_parent_origin
-        else:
-            assert hasattr(prev_joint, 'from_child_origin') and prev_joint.from_child_origin is not None and curr_joint.from_parent_origin is not None
-            # Insert axis alignment between the two origins
-            axis_alignment = get_origin_alignment(prev_joint.from_child_origin, curr_joint.from_parent_origin)
-            # aligned = prev_joint.from_child_origin.inverse().multiply(axis_alignment).multiply(curr_joint.from_parent_origin)
-            # # Now apply the child joint's local transform
-            # if curr_joint.from_child_origin is not None:
-            #     self.urdf_transform = aligned.multiply(curr_joint.from_child_origin)
-            # else:
-            #     self.urdf_transform = aligned
-            self.urdf_transform = prev_joint.from_child_origin.inverse().multiply(axis_alignment).multiply(curr_joint.from_parent_origin)
-        # Axis in parent frame
-        if curr_joint.from_child_origin is not None:
-            self.axis = curr_joint.from_child_origin.Rotation.multVec(App.Vector(0,0,1))
+        self.urdf_transform = get_joint_transform(prev_joint, curr_joint)
+        if self.joint_type == "revolute":
+            self.axis = get_joint_axis(prev_joint, curr_joint)
         else:
             self.axis = None
 
@@ -211,12 +193,12 @@ class URDFJoint:
         child = child_link
         semantic_name = self.name
         joint_xyz, joint_rpy = format_placement(self.urdf_transform, scale=SCALE)
-        axis_vec = self.axis
-        if parent_link != parent and axis_vec is not None:
-            axis_vec = App.Vector(-axis_vec.x, -axis_vec.y, -axis_vec.z)
         if joint_type == "fixed":
             self._write_fixed(f, semantic_name, parent, child, joint_xyz, joint_rpy)
         elif joint_type == "revolute":
+            axis_vec = self.axis if self.joint_type == "revolute" else None
+            if parent_link != parent and axis_vec is not None:
+                axis_vec = App.Vector(-axis_vec.x, -axis_vec.y, -axis_vec.z)
             self._write_revolute(f, semantic_name, parent, child, joint_xyz, joint_rpy, axis_vec)
         else:
             raise RuntimeError(f"ERROR: Unsupported joint type: {joint_type}")
@@ -233,10 +215,8 @@ class URDFJoint:
         f.write(f'    <parent link="{parent}"/>\n')
         f.write(f'    <child link="{child}"/>\n')
         f.write(f'    <origin xyz="{joint_xyz}" rpy="{joint_rpy}"/>\n')
-        if axis_vec is not None:
+        if self.joint_type == "revolute" and axis_vec is not None:
             f.write(f'    <axis xyz="{axis_vec.x} {axis_vec.y} {axis_vec.z}"/>\n')
-        else:
-            f.write('    <axis xyz="0 0 1"/>\n')
         lower = getattr(self.freecad_joint.joint, "LowerLimit", -3.14)
         upper = getattr(self.freecad_joint.joint, "UpperLimit", 3.14)
         effort = getattr(self.freecad_joint.joint, "Effort", 1)
@@ -245,15 +225,6 @@ class URDFJoint:
         f.write('  </joint>\n')
 
     def __str__(self):
-        # Only show transform info for debugging
-        # def clean_placement_str(placement):
-        #     import re
-        #     s = str(placement)
-        #     # Replace numbers very close to zero with 0.0
-        #     def repl(match):
-        #         val = float(match.group(0))
-        #         return '0.0' if abs(val) < 1e-8 else str(val)
-        #     return re.sub(r'-?\d*\.\d+(?:e[+-]?\d+)?', repl, s)
         def clean(val):
             try:
                 fval = float(val)
@@ -263,12 +234,18 @@ class URDFJoint:
         xyz, rpy = format_placement(self.urdf_transform, scale=1.0)
         xyz_clean = ' '.join(str(clean(x)) for x in xyz.split())
         rpy_clean = ' '.join(str(clean(x)) for x in rpy.split())
+        if self.joint_type == "revolute" and self.axis is not None:
+            axis_vec = self.axis
+            axis_clean = f"{clean(axis_vec.x)} {clean(axis_vec.y)} {clean(axis_vec.z)}"
+        else:
+            axis_clean = "None"
         return (f"""URDFJoint(
   name={self.name},
   parent_link={self.parent_link},
   child_link={self.child_link},
   xyz=\"{xyz_clean}\"
   rpy=\"{rpy_clean}\"
+  axis=\"{axis_clean}\"
 )""")
 
 # --- New object graph initialization and traversal ---
