@@ -106,10 +106,11 @@ def get_origin_alignment(from_placement, to_placement):
     Returns a FreeCAD.Placement representing the rotation-only transform.
     This is the rotation that, when applied to 'from_placement', aligns it with 'to_placement'.
     """
+    log_message(f"[DEBUG] get_origin_alignment: \n\tfrom_placement: {clean_placement(from_placement)}\n\tto_placement: {clean_placement(to_placement)}")
     # Compute the transform that brings 'from_placement' to 'to_placement'
     difference = to_placement.multiply(from_placement.inverse())
     rotation_difference = difference.Rotation
-    log_message(f"[DEBUG] get_origin_alignment: axis=({clean(rotation_difference.Axis.x)}, {clean(rotation_difference.Axis.y)}, {clean(rotation_difference.Axis.z)}), angle={clean(rotation_difference.Angle)}")
+    log_message(f"[DEBUG] get_origin_alignment: {clean(rotation_difference.Angle)} radians about ({clean(rotation_difference.Axis.x)}, {clean(rotation_difference.Axis.y)}, {clean(rotation_difference.Axis.z)})")
     return App.Placement(App.Vector(0, 0, 0), rotation_difference)
 
 
@@ -120,30 +121,41 @@ def get_mesh_offset(parent_joint):
     Returns a FreeCAD.Placement.
     """
     # return zero offset
-    # return App.Placement(App.Vector(0,19,0), App.Rotation(0,0,0,0))
+    # return App.Placement(App.Vector(0,0,0), App.Rotation(0,0,0,0))
+    # servo points right
 
     # OPTION 0: Just transform
     # return parent_joint.from_child_origin
+    # up instead of across
 
     # OPTION 1: Just inverse 
-    return parent_joint.from_child_origin.inverse()
+    # return parent_joint.from_child_origin.inverse()
+    # flipped to incorrect side
 
     alignment = get_origin_alignment(
         parent_joint.from_parent_origin, 
         parent_joint.from_child_origin
     )
 
+    # return alignment
+
+    # return alignment.multiply(parent_joint.from_child_origin)
+
     # OPTION 2: Align and then inverse (transformations happen from right to left)
     # return alignment.multiply(parent_joint.from_child_origin.inverse())
     # servo translated -Z by what should be +Y
 
     # OPTION 3: Align and then inverse
-    # return parent_joint.from_child_origin.inverse().multiply(alignment)
+    return parent_joint.from_child_origin.multiply(alignment).inverse()
     # servo translated -Z by what should be +Y
 
     # OPTION 4: Inverse then align
-    return alignment.multiply(parent_joint.from_child_origin)
-    # servo translated -Z by what should be +Y
+    # return alignment.multiply(parent_joint.from_child_origin)
+    # servo translated down instead of out -Z by what should be +Y
+
+    # OPTION 5: 
+    return parent_joint.from_child_origin.multiply(alignment)
+    # servo upside down and rotates about its center
 
     # from_child_origin = parent_joint.from_child_origin
     # # log_message(f"[DEBUG][mesh_offset] from_child_origin: Placement [Pos=({clean(from_child_origin.Base.x)}, {clean(from_child_origin.Base.y)}, {clean(from_child_origin.Base.z)}), Axis/Angle=({clean(from_child_origin.Rotation.Axis.x)}, {clean(from_child_origin.Rotation.Axis.y)}, {clean(from_child_origin.Rotation.Axis.z)}), angle={clean(from_child_origin.Rotation.Angle)}]")
