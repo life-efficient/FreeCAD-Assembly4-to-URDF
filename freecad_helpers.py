@@ -142,12 +142,13 @@ def get_mesh_offset(parent_joint):
     # return alignment.multiply(parent_joint.from_child_origin)
 
     # OPTION 2: Align and then inverse (transformations happen from right to left)
-    # return alignment.multiply(parent_joint.from_child_origin.inverse())
-    # servo translated -Z by what should be +Y
+    return alignment.multiply(parent_joint.from_child_origin.inverse())
+    # this works - positioning the servo correctly
+    # to me, this indicates that the order of application is from left to right - firstly align the axes, then move along the transform
 
     # OPTION 3: Align and then inverse
-    return parent_joint.from_child_origin.multiply(alignment).inverse()
-    # servo translated -Z by what should be +Y
+    # return parent_joint.from_child_origin.multiply(alignment).inverse()
+    # seems to work for servo but not for the other joints - likely a coincidence
 
     # OPTION 4: Inverse then align
     # return alignment.multiply(parent_joint.from_child_origin)
@@ -156,6 +157,9 @@ def get_mesh_offset(parent_joint):
     # OPTION 5: 
     return parent_joint.from_child_origin.multiply(alignment)
     # servo upside down and rotates about its center
+
+    # OPTION 6: 
+    return parent_joint.from_child_origin.inverse().multiply(alignment)
 
     # from_child_origin = parent_joint.from_child_origin
     # # log_message(f"[DEBUG][mesh_offset] from_child_origin: Placement [Pos=({clean(from_child_origin.Base.x)}, {clean(from_child_origin.Base.y)}, {clean(from_child_origin.Base.z)}), Axis/Angle=({clean(from_child_origin.Rotation.Axis.x)}, {clean(from_child_origin.Rotation.Axis.y)}, {clean(from_child_origin.Rotation.Axis.z)}), angle={clean(from_child_origin.Rotation.Angle)}]")
@@ -187,8 +191,29 @@ def get_joint_transform(prev_joint, curr_joint):
         transform = curr_joint.from_parent_origin
     else:
         assert hasattr(prev_joint, 'from_child_origin') and prev_joint.from_child_origin is not None and curr_joint.from_parent_origin is not None
-        axis_alignment = get_origin_alignment(prev_joint.from_child_origin, curr_joint.from_parent_origin)
-        transform = prev_joint.from_child_origin.inverse().multiply(axis_alignment).multiply(curr_joint.from_parent_origin)
+        log_message(f"\t[DEBUG][get_joint_transform] prev_joint.from_child_origin: {clean_placement(prev_joint.from_child_origin)}")
+        log_message(f"\t[DEBUG][get_joint_transform] curr_joint.from_parent_origin: {clean_placement(curr_joint.from_parent_origin)}")
+        product = prev_joint.from_child_origin.inverse().multiply(curr_joint.from_parent_origin)
+        log_message(f"\t[DEBUG][get_joint_transform] unaligned transform {clean_placement(product)}")
+        alignment = get_origin_alignment(
+            prev_joint.from_parent_origin, 
+            prev_joint.from_child_origin
+        )
+        # option 1: 
+        # transform = alignment.multiply(prev_joint.from_child_origin.inverse()).multiply(curr_joint.from_parent_origin)
+        # # option 2: 
+        # transform = alignment.multiply(prev_joint.from_child_origin.inverse().multiply(curr_joint.from_parent_origin))
+        # # option 3:
+        # transform = curr_joint.from_parent_origin.multiply(prev_joint.from_child_origin.inverse()).multiply(alignment)
+        # # option 4:
+        # transform = curr_joint.from_parent_origin.multiply(prev_joint.from_child_origin.inverse().multiply(alignment))
+        # # option 5:
+        # transform = alignment.multiply(curr_joint.from_parent_origin.multiply(prev_joint.from_child_origin.inverse()))
+        transform = curr_joint.from_parent_origin.multiply(prev_joint.from_child_origin.inverse().multiply(alignment))
+        # this makes sense if transforms are applied from right to left
+        # however, the working mesh offset calculation seems to work with the opposite order
+        transform = alignment.multiply(prev_joint.from_child_origin.inverse()).multiply(curr_joint.from_parent_origin)
+        transform = alignment.multiply(prev_joint.from_child_origin.inverse().multiply(curr_joint.from_parent_origin))
     log_message(f"\t[DEBUG][get_joint_transform] transform: {clean_placement(transform)}")
     return transform
 
