@@ -192,7 +192,7 @@ def get_joint_transform(prev_joint, curr_joint):
     )
     if prev_joint is None:
         log_message(f"\t[DEBUG][get_joint_transform] - this joint must be attached to the root link")
-        transform = curr_joint.from_parent_origin.multiply(alignment)
+        transform = curr_joint.from_parent_origin
     else:
         assert hasattr(prev_joint, 'from_child_origin') and prev_joint.from_child_origin is not None and curr_joint.from_parent_origin is not None
         log_message(f"\t[DEBUG][get_joint_transform] prev_joint.from_child_origin: {clean_placement(prev_joint.from_child_origin)}")
@@ -201,7 +201,7 @@ def get_joint_transform(prev_joint, curr_joint):
         joint_to_joint_in_parent_joint_frame = product
         log_message(f"\t[DEBUG][get_joint_transform] unaligned transform {clean_placement(product)}")
         # transform = joint_to_joint_in_parent_joint_frame
-        transform = joint_to_joint_in_parent_joint_frame.multiply(alignment)
+        transform = joint_to_joint_in_parent_joint_frame
         # transform = joint_to_joint_in_parent_joint_frame.multiply(alignment)
         # option 1: 
         # transform = alignment.multiply(prev_joint.from_child_origin.inverse()).multiply(curr_joint.from_parent_origin)
