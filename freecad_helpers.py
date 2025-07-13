@@ -194,26 +194,34 @@ def get_joint_transform(prev_joint, curr_joint):
         log_message(f"\t[DEBUG][get_joint_transform] prev_joint.from_child_origin: {clean_placement(prev_joint.from_child_origin)}")
         log_message(f"\t[DEBUG][get_joint_transform] curr_joint.from_parent_origin: {clean_placement(curr_joint.from_parent_origin)}")
         product = prev_joint.from_child_origin.inverse().multiply(curr_joint.from_parent_origin)
+        joint_to_joint_in_parent_joint_frame = product
         log_message(f"\t[DEBUG][get_joint_transform] unaligned transform {clean_placement(product)}")
         alignment = get_origin_alignment(
             prev_joint.from_parent_origin, 
             prev_joint.from_child_origin
         )
+        # transform = joint_to_joint_in_parent_joint_frame
+        transform = alignment.multiply(joint_to_joint_in_parent_joint_frame)
+        # transform = joint_to_joint_in_parent_joint_frame.multiply(alignment)
         # option 1: 
         # transform = alignment.multiply(prev_joint.from_child_origin.inverse()).multiply(curr_joint.from_parent_origin)
         # # option 2: 
         # transform = alignment.multiply(prev_joint.from_child_origin.inverse().multiply(curr_joint.from_parent_origin))
         # # option 3:
         # transform = curr_joint.from_parent_origin.multiply(prev_joint.from_child_origin.inverse()).multiply(alignment)
-        # # option 4:
-        # transform = curr_joint.from_parent_origin.multiply(prev_joint.from_child_origin.inverse().multiply(alignment))
         # # option 5:
         # transform = alignment.multiply(curr_joint.from_parent_origin.multiply(prev_joint.from_child_origin.inverse()))
-        transform = curr_joint.from_parent_origin.multiply(prev_joint.from_child_origin.inverse().multiply(alignment))
         # this makes sense if transforms are applied from right to left
         # however, the working mesh offset calculation seems to work with the opposite order
-        transform = alignment.multiply(prev_joint.from_child_origin.inverse()).multiply(curr_joint.from_parent_origin)
-        transform = alignment.multiply(prev_joint.from_child_origin.inverse().multiply(curr_joint.from_parent_origin))
+        # transform = alignment.multiply(prev_joint.from_child_origin.inverse()).multiply(curr_joint.from_parent_origin)
+        
+        # transform = alignment.multiply(prev_joint.from_child_origin.inverse().multiply(curr_joint.from_parent_origin))
+        # ^GOOD ONE leaves joints in correct position but rotated incorrectly - may just be mesh orientation missing
+
+        # transform = prev_joint.from_child_origin.inverse().multiply(curr_joint.from_parent_origin).multiply(alignment)
+        # ^ totally messed up
+        # transform = curr_joint.from_parent_origin.multiply(prev_joint.from_child_origin.inverse().multiply(alignment))
+        # ^ messed up
     log_message(f"\t[DEBUG][get_joint_transform] transform: {clean_placement(transform)}")
     return transform
 
