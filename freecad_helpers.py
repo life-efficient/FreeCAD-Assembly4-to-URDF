@@ -186,14 +186,14 @@ def get_joint_transform(prev_joint, curr_joint):
     Compute the URDF joint origin transform (parent frame to joint frame).
     Returns a FreeCAD.Placement.
     """
+    alignment = get_origin_alignment(
+        curr_joint.from_parent_origin, 
+        curr_joint.from_child_origin
+    )
     if prev_joint is None:
         log_message(f"\t[DEBUG][get_joint_transform] - this joint must be attached to the root link")
-        transform = curr_joint.from_parent_origin
+        transform = curr_joint.from_parent_origin.multiply(alignment)
     else:
-        alignment = get_origin_alignment(
-            prev_joint.from_parent_origin, 
-            prev_joint.from_child_origin
-        )
         assert hasattr(prev_joint, 'from_child_origin') and prev_joint.from_child_origin is not None and curr_joint.from_parent_origin is not None
         log_message(f"\t[DEBUG][get_joint_transform] prev_joint.from_child_origin: {clean_placement(prev_joint.from_child_origin)}")
         log_message(f"\t[DEBUG][get_joint_transform] curr_joint.from_parent_origin: {clean_placement(curr_joint.from_parent_origin)}")
