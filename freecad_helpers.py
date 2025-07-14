@@ -247,36 +247,18 @@ def get_global_placement(obj):
     log_message(f"[DEBUG][get_global_placement] {obj.Name} global placement: {placement}")
     return placement
 
-def are_joint_z_axes_opposed(parent_link, joint, child_link):
+def get_joint_frame_alignment(parent_link, joint, child_link):
     """
     Given:
       - parent_link: FreeCADLink object (parent)
       - joint: FreeCADJoint object (connecting parent and child)
       - child_link: FreeCADLink object (child)
     Returns:
-      -1 if the Z axes at the joint for parent and child are opposed (dot product < -0.99)
-      +1 if they are aligned (dot product > 0.99)
-      0 if undetermined (dot product between -0.99 and 0.99)
-      Also returns the actual dot product for diagnostics
+      A FreeCAD.Placement representing the rotation-only transform from the parent joint frame to the child joint frame.
     """
-    parent_global = get_global_placement(parent_link)
-    child_global = get_global_placement(child_link)
-    log_message(f"[ZAXIS_OPPOSED] parent_link.body.Placement: {parent_global}")
-    log_message(f"[ZAXIS_OPPOSED] child_link.body.Placement: {child_global}")
-    from_parent_origin = joint.from_parent_origin
-    from_child_origin = joint.from_child_origin
-    parent_joint_global = parent_global.multiply(from_parent_origin)
-    child_joint_global = child_global.multiply(from_child_origin)
-    z_parent = parent_joint_global.Rotation.multVec(App.Vector(0,0,1))
-    z_child = child_joint_global.Rotation.multVec(App.Vector(0,0,1))
-    dot = z_parent.dot(z_child)
-    try:
-        dot /= (z_parent.Length * z_child.Length)
-    except Exception:
-        return 0, None
-    if dot < -0.99:
-        return -1, dot
-    elif dot > 0.99:
-        return +1, dot
-    else:
-        return 0, dot
+    parent_joint_global = parent_link.global_placement.multiply(joint.from_parent_origin)
+    child_joint_global = child_link.global_placement.multiply(joint.from_child_origin)
+    # Compute the transform from parent joint frame to child joint frame
+    difference = parent_joint_global.inverse().multiply(child_joint_global)
+    rotation_difference = difference.Rotation
+    return App.Placement(App.Vector(0, 0, 0), rotation_difference)
