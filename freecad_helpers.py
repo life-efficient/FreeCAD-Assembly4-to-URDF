@@ -262,5 +262,5 @@ def get_joint_frame_alignment(joint):
     difference = parent_joint_global.inverse().multiply(child_joint_global)
     rotation_difference = difference.Rotation
     alignment_transform = App.Placement(App.Vector(0, 0, 0), rotation_difference)
-    log_message(f"[DEBUG][get_joint_frame_alignment] alignment_transform: {alignment_transform}")
+    # log_message(f"[DEBUG][get_joint_frame_alignment] alignment_transform: {alignment_transform}")
     return alignment_transform

@@ -93,7 +93,7 @@ class FreeCADLink:
             raise RuntimeError(f"ERROR: {self.name} has no valid shape to export")
         self.joints = []  # List of FreeCADJoint objects
         self.global_placement = get_global_placement(part)
-        log_message(f"[DEBUG] {self.name} global placement: {self.global_placement}")
+        # log_message(f"[DEBUG] {self.name} global placement: {self.global_placement}")
 
 class URDFLink:
     def __init__(self, freecad_link, is_root=False, parent_name=None, parent_joint=None):
@@ -345,7 +345,7 @@ def create_urdf(f, link, parent_joint=None, is_root=False, parent_name=None, vis
     log_message(f'[PROCESSING LINK] {link.name}')
     # Print URDFLink state before writing
     urdf_link = URDFLink(link, is_root=is_root, parent_name=parent_name, parent_joint=parent_joint)
-    log_message(str(urdf_link))
+    # log_message(str(urdf_link))
     urdf_link.write(f)
     for joint in link.joints:
         joint_id = id(joint)
