@@ -244,6 +244,7 @@ def get_global_placement(obj):
     while parent:
         placement = parent.Placement.multiply(placement)
         parent = parent.getParentGeoFeatureGroup()
+    log_message(f"[DEBUG][get_global_placement] {obj.Name} global placement: {placement}")
     return placement
 
 def are_joint_z_axes_opposed(parent_link, joint, child_link):
@@ -258,8 +259,8 @@ def are_joint_z_axes_opposed(parent_link, joint, child_link):
       0 if undetermined (dot product between -0.99 and 0.99)
       Also returns the actual dot product for diagnostics
     """
-    parent_global = get_global_placement(parent_link.body)
-    child_global = get_global_placement(child_link.body)
+    parent_global = get_global_placement(parent_link)
+    child_global = get_global_placement(child_link)
     log_message(f"[ZAXIS_OPPOSED] parent_link.body.Placement: {parent_global}")
     log_message(f"[ZAXIS_OPPOSED] child_link.body.Placement: {child_global}")
     from_parent_origin = joint.from_parent_origin

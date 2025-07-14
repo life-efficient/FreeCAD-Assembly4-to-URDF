@@ -92,6 +92,7 @@ class FreeCADLink:
         if not self.shape or self.shape.isNull():
             raise RuntimeError(f"ERROR: {self.name} has no valid shape to export")
         self.joints = []  # List of FreeCADJoint objects
+        self.global_placement = get_global_placement(part)
 
 class URDFLink:
     def __init__(self, freecad_link, is_root=False, parent_name=None, parent_joint=None):
@@ -170,7 +171,7 @@ class FreeCADJoint:
         self.reference1 = reference1
         self.reference2 = reference2
         self.child_link = child_link  # Should be a FreeCADLink or None
-        are_joint_z_axes_opposed(parent_link, self, child_link)
+        # are_joint_z_axes_opposed(parent_link, self, child_link)
 
 class URDFJoint:
     def __init__(self, prev_joint, curr_joint, parent_link=None, child_link=None):
@@ -376,7 +377,7 @@ def convert_assembly_to_urdf():
     for obj in assembly.Group:
         if obj.TypeId == "App::Link" and getattr(obj, "LinkedObject", None) and getattr(obj.LinkedObject, "TypeId", None) == "PartDesign::Body":
             robot_parts.append(obj)
-            log_message(f"[DEBUG] Found robot part: {obj.Name}, {get_global_placement(obj)}")
+            # log_message(f"[DEBUG] Found robot part: {obj.Name}, {get_global_placement(obj)}")
         elif obj.TypeId == "PartDesign::Body":
             robot_parts.append(obj)
     # Also collect recursively
