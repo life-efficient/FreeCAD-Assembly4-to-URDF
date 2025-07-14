@@ -93,6 +93,7 @@ class FreeCADLink:
             raise RuntimeError(f"ERROR: {self.name} has no valid shape to export")
         self.joints = []  # List of FreeCADJoint objects
         self.global_placement = get_global_placement(part)
+        log_message(f"[DEBUG] {self.name} global placement: {self.global_placement}")
 
 class URDFLink:
     def __init__(self, freecad_link, is_root=False, parent_name=None, parent_joint=None):
@@ -171,6 +172,7 @@ class FreeCADJoint:
         self.reference1 = reference1
         self.reference2 = reference2
         self.child_link = child_link  # Should be a FreeCADLink or None
+        self.parent_link = parent_link  # Should be a FreeCADLink or None
         # are_joint_z_axes_opposed(parent_link, self, child_link)
 
 class URDFJoint:

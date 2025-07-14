@@ -186,10 +186,7 @@ def get_joint_transform(prev_joint, curr_joint):
     Compute the URDF joint origin transform (parent frame to joint frame).
     Returns a FreeCAD.Placement.
     """
-    alignment = get_origin_alignment(
-        curr_joint.from_parent_origin, 
-        curr_joint.from_child_origin
-    )
+    alignment_transform = get_joint_frame_alignment(curr_joint)
     if prev_joint is None:
         log_message(f"\t[DEBUG][get_joint_transform] - this joint must be attached to the root link")
         transform = curr_joint.from_parent_origin
@@ -222,6 +219,7 @@ def get_joint_transform(prev_joint, curr_joint):
         # ^ totally messed up
         # transform = curr_joint.from_parent_origin.multiply(prev_joint.from_child_origin.inverse().multiply(alignment))
         # ^ messed up
+    transform = transform.multiply(alignment_transform)
     log_message(f"\t[DEBUG][get_joint_transform] transform: {clean_placement(transform)}")
     return transform
 
@@ -247,18 +245,22 @@ def get_global_placement(obj):
     log_message(f"[DEBUG][get_global_placement] {obj.Name} global placement: {placement}")
     return placement
 
-def get_joint_frame_alignment(parent_link, joint, child_link):
+def get_joint_frame_alignment(joint):
     """
     Given:
-      - parent_link: FreeCADLink object (parent)
       - joint: FreeCADJoint object (connecting parent and child)
-      - child_link: FreeCADLink object (child)
     Returns:
       A FreeCAD.Placement representing the rotation-only transform from the parent joint frame to the child joint frame.
     """
+    parent_link = getattr(joint, 'parent_link', None)
+    child_link = getattr(joint, 'child_link', None)
+    if parent_link is None or child_link is None:
+        raise ValueError("joint must have parent_link and child_link attributes")
     parent_joint_global = parent_link.global_placement.multiply(joint.from_parent_origin)
     child_joint_global = child_link.global_placement.multiply(joint.from_child_origin)
     # Compute the transform from parent joint frame to child joint frame
     difference = parent_joint_global.inverse().multiply(child_joint_global)
     rotation_difference = difference.Rotation
-    return App.Placement(App.Vector(0, 0, 0), rotation_difference)
+    alignment_transform = App.Placement(App.Vector(0, 0, 0), rotation_difference)
+    log_message(f"[DEBUG][get_joint_frame_alignment] alignment_transform: {alignment_transform}")
+    return alignment_transform

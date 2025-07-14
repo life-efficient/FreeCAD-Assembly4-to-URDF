@@ -1,9 +1,15 @@
 [DEBUG][get_global_placement] Foot_V2 global placement: Placement [Pos=(0,0,0), Yaw-Pitch-Roll=(0,0,0)]
+[DEBUG] Foot_V2 global placement: Placement [Pos=(0,0,0), Yaw-Pitch-Roll=(0,0,0)]
 [DEBUG][get_global_placement] _x6 global placement: Placement [Pos=(-6.49895,-20.5,92.9073), Yaw-Pitch-Roll=(-2.83898e-13,82.9212,-90)]
+[DEBUG] _x6 global placement: Placement [Pos=(-6.49895,-20.5,92.9073), Yaw-Pitch-Roll=(-2.83898e-13,82.9212,-90)]
 [DEBUG][get_global_placement] STS3125 global placement: Placement [Pos=(1.91615e-17,0.5,-1.78606e-15), Yaw-Pitch-Roll=(2.37093e-15,-7.07883,-3.83316e-14)]
+[DEBUG] STS3125 global placement: Placement [Pos=(1.91615e-17,0.5,-1.78606e-15), Yaw-Pitch-Roll=(2.37093e-15,-7.07883,-3.83316e-14)]
 [DEBUG][get_global_placement] Servo_Case_to_Grid global placement: Placement [Pos=(-4.31322,0.5,34.7332), Yaw-Pitch-Roll=(2.66507e-15,-7.07883,180)]
+[DEBUG] Servo_Case_to_Grid global placement: Placement [Pos=(-4.31322,0.5,34.7332), Yaw-Pitch-Roll=(2.66507e-15,-7.07883,180)]
 [DEBUG][get_global_placement] Servo_Horn_to_Grid global placement: Placement [Pos=(-15.2344,1,122.678), Yaw-Pitch-Roll=(2.27063e-15,-7.07883,-1.29715e-14)]
+[DEBUG] Servo_Horn_to_Grid global placement: Placement [Pos=(-15.2344,1,122.678), Yaw-Pitch-Roll=(2.27063e-15,-7.07883,-1.29715e-14)]
 [DEBUG][get_global_placement] STS3126 global placement: Placement [Pos=(-15.2344,1.5,122.678), Yaw-Pitch-Roll=(1.40253e-14,-20.0326,-7.94095e-14)]
+[DEBUG] STS3126 global placement: Placement [Pos=(-15.2344,1.5,122.678), Yaw-Pitch-Roll=(1.40253e-14,-20.0326,-7.94095e-14)]
 [DEBUG] Link names in links dict: Foot_V2, _x6, STS3125, Servo_Case_to_Grid, Servo_Horn_to_Grid, STS3126
 [DEBUG] Grounded joint found: GroundedJoint grounding Foot_V2
 --- ASSEMBLY TREE ---
@@ -29,23 +35,20 @@ URDFLink(
 )
 
 [PROCESSING JOINT] Foot_V2-STS3125_revolute
-[DEBUG] get_origin_alignment: 
-	from_placement: Placement [Pos=(0.0, -18.5, 0.0), Axis/Angle=(-1.0, 0.0, 0.0), angle=1.5707963267948968]
-	to_placement: Placement [Pos=(0.0, -18.999999999999996, 0.0), Axis/Angle=(1.0, 0.0, 0.0), angle=1.5707963267948968]
-[DEBUG] get_origin_alignment: 3.1415926535897936 radians about (1.0, 0.0, 0.0)
+[DEBUG][get_joint_frame_alignment] alignment_transform: Placement [Pos=(0,0,0), Yaw-Pitch-Roll=(-7.07883,-1.31904e-15,180)]
 	[DEBUG][get_joint_transform] - this joint must be attached to the root link
-	[DEBUG][get_joint_transform] transform: Placement [Pos=(0.0, -18.5, 0.0), Axis/Angle=(-1.0, 0.0, 0.0), angle=1.5707963267948968]
+	[DEBUG][get_joint_transform] transform: Placement [Pos=(0.0, -18.5, 0.0), Axis/Angle=(0.9961960018031533, -0.06161787886405999, 0.06161787886406), angle=1.5746075693670745]
 [DEBUG][get_joint_axis] axis in joint local frame: (0, 0, 1)
-[DEBUG][format_placement] roll: -90.00000000000001, pitch: 0.0, yaw: 0.0
+[DEBUG][format_placement] roll: 89.99999999999997, pitch: -7.0788327333369265, yaw: 2.4037384271925006e-15
 URDFJoint(
   name=Foot_V2-STS3125_revolute,
   parent_link=Foot_V2,
   child_link=STS3125,
   xyz="0.0 -18.5 0.0"
-  rpy="-1.570796 0.0 0.0"
+  rpy="1.570796 -0.123549 0.0"
   axis="0.0 0.0 1.0"
 )
-[DEBUG][format_placement] roll: -90.00000000000001, pitch: 0.0, yaw: 0.0
+[DEBUG][format_placement] roll: 89.99999999999997, pitch: -7.0788327333369265, yaw: 2.4037384271925006e-15
 
 [PROCESSING LINK] STS3125
 [DEBUG] parent name: Foot_V2
@@ -57,24 +60,21 @@ URDFLink(
 )
 
 [PROCESSING JOINT] STS3125-Servo_Case_to_Grid_fixed
-[DEBUG] get_origin_alignment: 
-	from_placement: Placement [Pos=(0.0, -16.00000000000001, 35.00000000000003), Axis/Angle=(-0.7071067811865476, 0.0, 0.7071067811865476), angle=3.141592653589793]
-	to_placement: Placement [Pos=(0.0, 16.000000000000004, 0.0), Axis/Angle=(0.7071067811865476, 0.0, 0.7071067811865476), angle=3.141592653589793]
-[DEBUG] get_origin_alignment: 3.141592653589793 radians about (0.0, 1.0, 0.0)
+[DEBUG][get_joint_frame_alignment] alignment_transform: Placement [Pos=(0,0,0), Yaw-Pitch-Roll=(7.12455e-15,-7.07169e-14,180)]
 	[DEBUG][get_joint_transform] prev_joint.from_child_origin: Placement [Pos=(0.0, -18.999999999999996, 0.0), Axis/Angle=(1.0, 0.0, 0.0), angle=1.5707963267948968]
 	[DEBUG][get_joint_transform] curr_joint.from_parent_origin: Placement [Pos=(0.0, -16.00000000000001, 35.00000000000003), Axis/Angle=(-0.7071067811865476, 0.0, 0.7071067811865476), angle=3.141592653589793]
 	[DEBUG][get_joint_transform] unaligned transform Placement [Pos=(0.0, 35.000000000000036, -2.999999999999993), Axis/Angle=(-0.5773502691896258, 0.577350269189626, 0.5773502691896258), angle=4.188790204786391]
-	[DEBUG][get_joint_transform] transform: Placement [Pos=(0.0, 35.000000000000036, -2.999999999999993), Axis/Angle=(-0.5773502691896258, 0.577350269189626, 0.5773502691896258), angle=4.188790204786391]
-[DEBUG][format_placement] roll: 90.0, pitch: -1.2722218725854067e-14, yaw: -90.0
+	[DEBUG][get_joint_transform] transform: Placement [Pos=(0.0, 35.000000000000036, -2.999999999999993), Axis/Angle=(0.5773502691896254, -0.5773502691896261, 0.5773502691896262), angle=4.1887902047863905]
+[DEBUG][format_placement] roll: -90.00000000000001, pitch: -1.5902773407317584e-14, yaw: -90.00000000000009
 URDFJoint(
   name=STS3125-Servo_Case_to_Grid_fixed,
   parent_link=STS3125,
   child_link=Servo_Case_to_Grid,
   xyz="0.0 35.0 -3.0"
-  rpy="1.570796 0.0 -1.570796"
+  rpy="-1.570796 0.0 -1.570796"
   axis="None"
 )
-[DEBUG][format_placement] roll: 90.0, pitch: -1.2722218725854067e-14, yaw: -90.0
+[DEBUG][format_placement] roll: -90.00000000000001, pitch: -1.5902773407317584e-14, yaw: -90.00000000000009
 
 [PROCESSING LINK] Servo_Case_to_Grid
 [DEBUG] parent name: STS3125
@@ -86,15 +86,12 @@ URDFLink(
 )
 
 [PROCESSING JOINT] Servo_Case_to_Grid-_x6_fixed
-[DEBUG] get_origin_alignment: 
-	from_placement: Placement [Pos=(-5.000000000000001, 16.000000000000004, -8.000000000000007), Axis/Angle=(-0.577350269189626, 0.5773502691896257, -0.5773502691896255), angle=4.188790204786391]
-	to_placement: Placement [Pos=(50.00000000000002, 10.000000000000012, 5.0), Axis/Angle=(0.0, 0.0, 1.0), angle=0.0]
-[DEBUG] get_origin_alignment: 4.188790204786391 radians about (0.5773502691896261, -0.5773502691896257, 0.5773502691896255)
+[DEBUG][get_joint_frame_alignment] alignment_transform: Placement [Pos=(0,0,0), Yaw-Pitch-Roll=(4.60398e-14,1.26367e-15,1.68179e-14)]
 	[DEBUG][get_joint_transform] prev_joint.from_child_origin: Placement [Pos=(0.0, 16.000000000000004, 0.0), Axis/Angle=(0.7071067811865476, 0.0, 0.7071067811865476), angle=3.141592653589793]
 	[DEBUG][get_joint_transform] curr_joint.from_parent_origin: Placement [Pos=(-5.000000000000001, 16.000000000000004, -8.000000000000007), Axis/Angle=(-0.577350269189626, 0.5773502691896257, -0.5773502691896255), angle=4.188790204786391]
 	[DEBUG][get_joint_transform] unaligned transform Placement [Pos=(-8.000000000000002, 0.0, -4.999999999999998), Axis/Angle=(1.0, 0.0, 0.0), angle=4.71238898038469]
-	[DEBUG][get_joint_transform] transform: Placement [Pos=(-8.000000000000002, 0.0, -4.999999999999998), Axis/Angle=(1.0, 0.0, 0.0), angle=4.71238898038469]
-[DEBUG][format_placement] roll: -90.0, pitch: -1.2722218725854065e-14, yaw: 2.1718185858643948e-14
+	[DEBUG][get_joint_transform] transform: Placement [Pos=(-8.000000000000002, 0.0, -4.999999999999998), Axis/Angle=(1.0, 0.0, 0.0), angle=4.712388980384691]
+[DEBUG][format_placement] roll: -89.99999999999999, pitch: 3.331759617145406e-14, yaw: 2.0454518219578188e-14
 URDFJoint(
   name=Servo_Case_to_Grid-_x6_fixed,
   parent_link=Servo_Case_to_Grid,
@@ -103,7 +100,7 @@ URDFJoint(
   rpy="-1.570796 0.0 0.0"
   axis="None"
 )
-[DEBUG][format_placement] roll: -90.0, pitch: -1.2722218725854065e-14, yaw: 2.1718185858643948e-14
+[DEBUG][format_placement] roll: -89.99999999999999, pitch: 3.331759617145406e-14, yaw: 2.0454518219578188e-14
 
 [PROCESSING LINK] _x6
 [DEBUG] parent name: Servo_Case_to_Grid
@@ -115,15 +112,12 @@ URDFLink(
 )
 
 [PROCESSING JOINT] _x6-Servo_Horn_to_Grid_fixed
-[DEBUG] get_origin_alignment: 
-	from_placement: Placement [Pos=(-5.0, 4.999999999999999, 0.0), Axis/Angle=(0.0, -0.7071067811865476, 0.7071067811865476), angle=3.141592653589793]
-	to_placement: Placement [Pos=(5.49084326173953e-07, -21.500000000000018, -25.620499351813336), Axis/Angle=(0.7071067811865476, 0.0, 0.7071067811865476), angle=3.141592653589793]
-[DEBUG] get_origin_alignment: 2.0943951023931957 radians about (-0.5773502691896258, 0.5773502691896258, 0.5773502691896258)
+[DEBUG][get_joint_frame_alignment] alignment_transform: Placement [Pos=(0,0,0), Yaw-Pitch-Roll=(1.10212e-14,7.91404e-14,1.85379e-14)]
 	[DEBUG][get_joint_transform] prev_joint.from_child_origin: Placement [Pos=(50.00000000000002, 10.000000000000012, 5.0), Axis/Angle=(0.0, 0.0, 1.0), angle=0.0]
 	[DEBUG][get_joint_transform] curr_joint.from_parent_origin: Placement [Pos=(-5.0, 4.999999999999999, 0.0), Axis/Angle=(0.0, -0.7071067811865476, 0.7071067811865476), angle=3.141592653589793]
 	[DEBUG][get_joint_transform] unaligned transform Placement [Pos=(-55.00000000000002, -5.0, -4.999999999999998), Axis/Angle=(0.0, -0.7071067811865476, 0.7071067811865476), angle=3.141592653589793]
-	[DEBUG][get_joint_transform] transform: Placement [Pos=(-55.00000000000002, -5.0, -4.999999999999998), Axis/Angle=(0.0, -0.7071067811865476, 0.7071067811865476), angle=3.141592653589793]
-[DEBUG][format_placement] roll: -90.0, pitch: 1.0045082521158771e-14, yaw: 180.0
+	[DEBUG][get_joint_transform] transform: Placement [Pos=(-55.00000000000002, -5.0, -4.999999999999998), Axis/Angle=(0.0, -0.7071067811865475, 0.7071067811865477), angle=3.1415926535897922]
+[DEBUG][format_placement] roll: -89.99999999999999, pitch: 2.1066271656755552e-14, yaw: 179.99999999999991
 URDFJoint(
   name=_x6-Servo_Horn_to_Grid_fixed,
   parent_link=_x6,
@@ -132,7 +126,7 @@ URDFJoint(
   rpy="-1.570796 0.0 3.141593"
   axis="None"
 )
-[DEBUG][format_placement] roll: -90.0, pitch: 1.0045082521158771e-14, yaw: 180.0
+[DEBUG][format_placement] roll: -89.99999999999999, pitch: 2.1066271656755552e-14, yaw: 179.99999999999991
 
 [PROCESSING LINK] Servo_Horn_to_Grid
 [DEBUG] parent name: _x6
@@ -144,25 +138,22 @@ URDFLink(
 )
 
 [PROCESSING JOINT] Servo_Horn_to_Grid-STS3126_revolute
-[DEBUG] get_origin_alignment: 
-	from_placement: Placement [Pos=(0.0, -18.499999999999996, 0.0), Axis/Angle=(-1.0, 0.0, 0.0), angle=1.5707963267948968]
-	to_placement: Placement [Pos=(0.0, -19.0, 0.0), Axis/Angle=(1.0, 0.0, 0.0), angle=1.5707963267948968]
-[DEBUG] get_origin_alignment: 3.1415926535897936 radians about (1.0, 0.0, 0.0)
+[DEBUG][get_joint_frame_alignment] alignment_transform: Placement [Pos=(0,0,0), Yaw-Pitch-Roll=(-12.9538,-6.40928e-15,180)]
 	[DEBUG][get_joint_transform] prev_joint.from_child_origin: Placement [Pos=(5.49084326173953e-07, -21.500000000000018, -25.620499351813336), Axis/Angle=(0.7071067811865476, 0.0, 0.7071067811865476), angle=3.141592653589793]
 	[DEBUG][get_joint_transform] curr_joint.from_parent_origin: Placement [Pos=(0.0, -18.499999999999996, 0.0), Axis/Angle=(-1.0, 0.0, 0.0), angle=1.5707963267948968]
 	[DEBUG][get_joint_transform] unaligned transform Placement [Pos=(25.620499351813343, -3.0000000000000213, -5.490843244226804e-07), Axis/Angle=(-0.5773502691896257, 0.5773502691896258, -0.5773502691896257), angle=4.188790204786391]
-	[DEBUG][get_joint_transform] transform: Placement [Pos=(25.620499351813343, -3.0000000000000213, -5.490843244226804e-07), Axis/Angle=(-0.5773502691896257, 0.5773502691896258, -0.5773502691896257), angle=4.188790204786391]
+	[DEBUG][get_joint_transform] transform: Placement [Pos=(25.620499351813343, -3.0000000000000213, -5.490843244226804e-07), Axis/Angle=(-0.6640840583375366, -0.5286739843523353, -0.5286739843523359), angle=1.9691676293816207]
 [DEBUG][get_joint_axis] axis in joint local frame: (0, 0, 1)
-[DEBUG][format_placement] roll: -270.0, pitch: -90.0, yaw: 0.0
+[DEBUG][format_placement] roll: -90.0, pitch: -77.04624111410777, yaw: -4.256543528033621e-14
 URDFJoint(
   name=Servo_Horn_to_Grid-STS3126_revolute,
   parent_link=Servo_Horn_to_Grid,
   child_link=STS3126,
   xyz="25.620499 -3.0 -1e-06"
-  rpy="-4.712389 -1.570796 0.0"
+  rpy="-1.570796 -1.344711 0.0"
   axis="0.0 0.0 1.0"
 )
-[DEBUG][format_placement] roll: -270.0, pitch: -90.0, yaw: 0.0
+[DEBUG][format_placement] roll: -90.0, pitch: -77.04624111410777, yaw: -4.256543528033621e-14
 
 [PROCESSING LINK] STS3126
 [DEBUG] parent name: Servo_Horn_to_Grid
