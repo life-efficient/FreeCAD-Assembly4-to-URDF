@@ -2,7 +2,7 @@ import FreeCAD as App
 import os
 
 from utils_io import ensure_dir
-from freecad_helpers import export_mesh, get_inertial, get_link_name_from_reference, get_mesh_offset, get_joint_transform, get_joint_axis, are_joint_z_axes_opposed, get_global_placement
+from freecad_helpers import export_mesh, get_inertial, get_link_name_from_reference, get_mesh_offset, get_joint_transform, get_joint_axis, get_global_placement
 from utils_math import format_vector, format_placement
 from logging_utils import log_message, log_newline
 
