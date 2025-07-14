@@ -236,3 +236,46 @@ def get_joint_axis(prev_joint, curr_joint):
     z_axis = App.Vector(0, 0, 1)
     log_message(f"[DEBUG][get_joint_axis] axis in joint local frame: (0, 0, 1)")
     return z_axis
+
+def get_global_placement(obj):
+    # return obj.getGlobalPlacement()
+    placement = obj.Placement
+    parent = obj.getParentGeoFeatureGroup()
+    while parent:
+        placement = parent.Placement.multiply(placement)
+        parent = parent.getParentGeoFeatureGroup()
+    return placement
+
+def are_joint_z_axes_opposed(parent_link, joint, child_link):
+    """
+    Given:
+      - parent_link: FreeCADLink object (parent)
+      - joint: FreeCADJoint object (connecting parent and child)
+      - child_link: FreeCADLink object (child)
+    Returns:
+      -1 if the Z axes at the joint for parent and child are opposed (dot product < -0.99)
+      +1 if they are aligned (dot product > 0.99)
+      0 if undetermined (dot product between -0.99 and 0.99)
+      Also returns the actual dot product for diagnostics
+    """
+    parent_global = get_global_placement(parent_link.body)
+    child_global = get_global_placement(child_link.body)
+    log_message(f"[ZAXIS_OPPOSED] parent_link.body.Placement: {parent_global}")
+    log_message(f"[ZAXIS_OPPOSED] child_link.body.Placement: {child_global}")
+    from_parent_origin = joint.from_parent_origin
+    from_child_origin = joint.from_child_origin
+    parent_joint_global = parent_global.multiply(from_parent_origin)
+    child_joint_global = child_global.multiply(from_child_origin)
+    z_parent = parent_joint_global.Rotation.multVec(App.Vector(0,0,1))
+    z_child = child_joint_global.Rotation.multVec(App.Vector(0,0,1))
+    dot = z_parent.dot(z_child)
+    try:
+        dot /= (z_parent.Length * z_child.Length)
+    except Exception:
+        return 0, None
+    if dot < -0.99:
+        return -1, dot
+    elif dot > 0.99:
+        return +1, dot
+    else:
+        return 0, dot

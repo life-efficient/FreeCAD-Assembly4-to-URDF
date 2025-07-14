@@ -2,7 +2,7 @@ import FreeCAD as App
 import os
 
 from utils_io import ensure_dir
-from freecad_helpers import export_mesh, get_inertial, get_link_name_from_reference, get_mesh_offset, get_joint_transform, get_joint_axis
+from freecad_helpers import export_mesh, get_inertial, get_link_name_from_reference, get_mesh_offset, get_joint_transform, get_joint_axis, are_joint_z_axes_opposed, get_global_placement
 from utils_math import format_vector, format_placement
 from logging_utils import log_message, log_newline
 
@@ -152,7 +152,7 @@ class URDFLink:
 )""")
 
 class FreeCADJoint:
-    def __init__(self, joint, link_name, child_link=None):
+    def __init__(self, joint, link_name, child_link=None, parent_link=None):
         self.joint = joint
         self.link_name = link_name
         reference1 = getattr(joint, "Reference1", None)
@@ -170,6 +170,7 @@ class FreeCADJoint:
         self.reference1 = reference1
         self.reference2 = reference2
         self.child_link = child_link  # Should be a FreeCADLink or None
+        are_joint_z_axes_opposed(parent_link, self, child_link)
 
 class URDFJoint:
     def __init__(self, prev_joint, curr_joint, parent_link=None, child_link=None):
@@ -309,7 +310,7 @@ def build_assembly_tree(robot_parts, joint_objs):
                 joint_name = getattr(joint_obj, 'Name', '<no name>')
                 joint_type = getattr(joint_obj, 'JointType', '<none>')
                 # log_message(f"[TREE BUILD] Link '{link.name}' found joint '{joint_name}' (type: {joint_type}) to '{other_link_name}'")
-                joint = FreeCADJoint(joint_obj, link.name)
+                joint = FreeCADJoint(joint_obj, link.name, child_link=links[other_link_name], parent_link=link)
                 joint.child_link = links[other_link_name]
 
                 # SKIP JOINTS ALREADY VISITED - these are the joints that are already in the tree and are (grand)parents of this one
@@ -375,6 +376,7 @@ def convert_assembly_to_urdf():
     for obj in assembly.Group:
         if obj.TypeId == "App::Link" and getattr(obj, "LinkedObject", None) and getattr(obj.LinkedObject, "TypeId", None) == "PartDesign::Body":
             robot_parts.append(obj)
+            log_message(f"[DEBUG] Found robot part: {obj.Name}, {get_global_placement(obj)}")
         elif obj.TypeId == "PartDesign::Body":
             robot_parts.append(obj)
     # Also collect recursively
@@ -387,9 +389,9 @@ def convert_assembly_to_urdf():
                     robot_parts.append(sub)
     joints_group = find_joints_group(assembly) if assembly else None
     joint_objs = joints_group.Group if joints_group else []
-    print('Joint names and JointType values:')
-    for joint in joint_objs:
-        print(f"  {getattr(joint, 'Name', '<no name>')}: JointType = {getattr(joint, 'JointType', '<none>')}")
+    # print('Joint names and JointType values:')
+    # for joint in joint_objs:
+    #     print(f"  {getattr(joint, 'Name', '<no name>')}: JointType = {getattr(joint, 'JointType', '<none>')}")
     # Build the assembly tree
     root_link, links, joints = build_assembly_tree(robot_parts, joint_objs)
     if root_link:
