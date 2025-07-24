@@ -6,6 +6,60 @@ from freecad_helpers import export_mesh, get_inertial, get_link_name_from_refere
 from utils_math import format_vector, format_placement
 from logging_utils import log_message, log_newline
 
+def get_export_dir():
+    """Get the export directory based on configuration"""
+    # Print the active document information
+    if DOC:
+        print(f"Active document name: {DOC.Name}")
+        print(f"Active document file path: {DOC.FileName}")
+        print(f"Active document label: {DOC.Label}")
+    else:
+        print("No active document found")
+    
+    # Load environment configuration
+    env_file = os.path.join(os.path.dirname(__file__), "export_config.env")
+    external_dir = None
+    
+    if os.path.exists(env_file):
+        with open(env_file, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#'):
+                    if '=' in line:
+                        key, value = line.split('=', 1)
+                        if key.strip() == 'EXTERNAL_EXPORT_DIR':
+                            external_dir = value.strip()
+                            break
+    
+    # Get external directory from environment, fallback to local exports directory
+    if external_dir:
+        base_dir = external_dir
+        print(f"Using external export directory: {base_dir}")
+    else:
+        # Fallback to local directory in repo
+        base_dir = os.path.join(os.path.dirname(__file__), "exports")
+        print(f"Using local export directory: {base_dir}")
+    
+    # Get the FreeCAD document name without extension
+    if not DOC:
+        raise RuntimeError("No active FreeCAD document found. Please open a document before running the export.")
+    if not DOC.Name:
+        raise RuntimeError("Active FreeCAD document has no name. Please save the document before running the export.")
+    
+    fcdoc_name = DOC.Name.replace('.FCStd', '')  # Remove .FCStd extension if present
+    
+    # Create export directory path
+    export_dir = os.path.join(base_dir, fcdoc_name)
+    
+    # Check if directory exists, create if it doesn't
+    if not os.path.exists(export_dir):
+        print(f"Creating export directory: {export_dir}")
+        os.makedirs(export_dir, exist_ok=True)
+    else:
+        print(f"Export directory exists: {export_dir}")
+    
+    return export_dir
+
 # --- Logging helpers ---
 MANUAL_CHECK_FILE = os.path.join(os.path.dirname(__file__), "manual_check.txt")
 with open(MANUAL_CHECK_FILE, 'w', encoding='utf-8') as f:
@@ -39,7 +93,6 @@ def print_assembly_tree(root_link):
 
 DOC = App.ActiveDocument
 ROBOT_NAME = "my_robot"
-EXPORT_DIR = os.path.join(os.path.expanduser("~"), "projects/FreeCAD-Designs", "macros", ROBOT_NAME)
 MESH_FORMAT = "stl"  # or 'dae'
 SCALE = 0.001  # mm → m (set to 0.001 for mm to meters conversion)
 PLA_DENSITY = 1240  # kg/m^3
@@ -365,10 +418,10 @@ def create_urdf(f, link, parent_joint=None, is_root=False, parent_name=None, vis
     visited_links.add(link.name)
 
 # --- Replace old traversal in assemblyToURDF_tree ---
-def convert_assembly_to_urdf():
+def convert_assembly_to_urdf(export_dir):
     print('running (assembly tree traversal)' + '\n'*5)
-    ensure_dir(EXPORT_DIR)
-    ensure_dir(os.path.join(EXPORT_DIR, "meshes"))
+    ensure_dir(export_dir)
+    ensure_dir(os.path.join(export_dir, "meshes"))
     assembly = [obj for obj in DOC.Objects if obj.TypeId == "Assembly::AssemblyObject"]
     try:
         assembly = assembly[0]
@@ -399,7 +452,7 @@ def convert_assembly_to_urdf():
     root_link, links, joints = build_assembly_tree(robot_parts, joint_objs)
     if root_link:
         print_assembly_tree(root_link)
-    urdf_file = os.path.join(EXPORT_DIR, "robot.urdf")
+    urdf_file = os.path.join(export_dir, "robot.urdf")
     with open(urdf_file, "w") as f:
         f.write(f'<robot name="{ROBOT_NAME}">\n\n')
         if root_link:
@@ -408,4 +461,7 @@ def convert_assembly_to_urdf():
     print(f"\nExport complete!\nURDF exported to: {urdf_file}")
 
 def main():
-    convert_assembly_to_urdf() 
+    # Get export directory (includes all logging)
+    export_dir = get_export_dir()
+    
+    convert_assembly_to_urdf(export_dir) 

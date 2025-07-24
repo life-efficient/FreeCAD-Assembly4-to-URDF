@@ -1,5 +1,8 @@
 manual_check.txt
 
+# Configuration files
+export_config.env
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
