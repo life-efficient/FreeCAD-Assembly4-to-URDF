@@ -1,6 +1,7 @@
 manual_check.txt
 
 # Configuration files
+exports
 export_config.env
 
 # Byte-compiled / optimized / DLL files
