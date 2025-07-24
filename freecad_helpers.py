@@ -6,8 +6,6 @@ import os
 # Remove log_message and log_newline from this file and import from logging_utils
 from logging_utils import log_message, log_newline
 
-ROBOT_NAME = "my_robot"
-EXPORT_DIR = os.path.join(os.path.expanduser("~"), "projects/FreeCAD-Designs", "macros", ROBOT_NAME)
 MESH_FORMAT = "stl"
 PLA_DENSITY = 1240
 
@@ -18,9 +16,9 @@ def get_link_name_from_reference(ref):
         return ref[1][0].split('.')[0]
     return None
 
-def export_mesh(body, name):
+def export_mesh(body, name, export_dir):
     """Export a FreeCAD body as a mesh and return the mesh path."""
-    mesh_path = os.path.join(EXPORT_DIR, "meshes", f"{name}.{MESH_FORMAT}")
+    mesh_path = os.path.join(export_dir, "meshes", f"{name}.{MESH_FORMAT}")
     
     # Import the scale factor
     import ExportAssembly4ToURDF_tree

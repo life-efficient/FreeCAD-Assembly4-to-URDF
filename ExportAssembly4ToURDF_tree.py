@@ -6,8 +6,14 @@ from freecad_helpers import export_mesh, get_inertial, get_link_name_from_refere
 from utils_math import format_vector, format_placement
 from logging_utils import log_message, log_newline
 
+EXPORT_HERE = True
+
 def get_export_dir():
     """Get the export directory based on configuration"""
+
+    if EXPORT_HERE:
+        return os.path.join(os.path.dirname(__file__), "exports")
+
     # Print the active document information
     if DOC:
         print(f"Active document name: {DOC.Name}")
@@ -149,10 +155,10 @@ class FreeCADLink:
         # log_message(f"[DEBUG] {self.name} global placement: {self.global_placement}")
 
 class URDFLink:
-    def __init__(self, freecad_link, is_root=False, parent_name=None, parent_joint=None):
+    def __init__(self, freecad_link, export_dir, is_root=False, parent_name=None, parent_joint=None):
         self.name = freecad_link.name
         self.body = freecad_link.body
-        self.mesh_path = export_mesh(self.body, self.name)
+        self.mesh_path = export_mesh(self.body, self.name, export_dir)
         self.inertial = get_inertial(self.body, self.name)
         self.is_root = is_root
         self.parent_name = parent_name
@@ -384,7 +390,7 @@ def build_assembly_tree(robot_parts, joint_objs):
     build_tree(root_link)
     return root_link, links, []
 
-def create_urdf(f, link, parent_joint=None, is_root=False, parent_name=None, visited_links=None, visited_joints=None):
+def create_urdf(f, link, export_dir, parent_joint=None, is_root=False, parent_name=None, visited_links=None, visited_joints=None):
     if visited_links is None:
         visited_links = set()
     if visited_joints is None:
@@ -397,7 +403,7 @@ def create_urdf(f, link, parent_joint=None, is_root=False, parent_name=None, vis
     log_newline()
     log_message(f'[PROCESSING LINK] {link.name}')
     # Print URDFLink state before writing
-    urdf_link = URDFLink(link, is_root=is_root, parent_name=parent_name, parent_joint=parent_joint)
+    urdf_link = URDFLink(link, export_dir, is_root=is_root, parent_name=parent_name, parent_joint=parent_joint)
     # log_message(str(urdf_link))
     urdf_link.write(f)
     for joint in link.joints:
@@ -413,7 +419,7 @@ def create_urdf(f, link, parent_joint=None, is_root=False, parent_name=None, vis
         log_message(str(urdf_joint))
         urdf_joint.write(f, link.name, joint.child_link.name)
         # Recursively traverse the child link
-        create_urdf(f, joint.child_link, parent_joint=joint, is_root=False, parent_name=link.name, visited_links=visited_links.copy(), visited_joints=visited_joints_new)
+        create_urdf(f, joint.child_link, export_dir, parent_joint=joint, is_root=False, parent_name=link.name, visited_links=visited_links.copy(), visited_joints=visited_joints_new)
     # Only mark the link as visited after all joints/children are processed
     visited_links.add(link.name)
 
@@ -456,7 +462,7 @@ def convert_assembly_to_urdf(export_dir):
     with open(urdf_file, "w") as f:
         f.write(f'<robot name="{ROBOT_NAME}">\n\n')
         if root_link:
-            create_urdf(f, root_link, parent_joint=None, is_root=True, parent_name="world")
+            create_urdf(f, root_link, export_dir, parent_joint=None, is_root=True, parent_name="world")
         f.write('</robot>\n')
     print(f"\nExport complete!\nURDF exported to: {urdf_file}")
 
