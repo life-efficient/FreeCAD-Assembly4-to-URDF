@@ -21,7 +21,33 @@ def get_link_name_from_reference(ref):
 def export_mesh(body, name):
     """Export a FreeCAD body as a mesh and return the mesh path."""
     mesh_path = os.path.join(EXPORT_DIR, "meshes", f"{name}.{MESH_FORMAT}")
-    Mesh.export([body], mesh_path)
+    
+    # Import the scale factor
+    import ExportAssembly4ToURDF_tree
+    scale_factor = ExportAssembly4ToURDF_tree.SCALE
+    
+    # Create a scaled transform matrix
+    scale_matrix = App.Matrix(
+        scale_factor, 0, 0, 0,
+        0, scale_factor, 0, 0,
+        0, 0, scale_factor, 0,
+        0, 0, 0, 1
+    )
+    
+    # Apply scaling to the shape
+    scaled_shape = body.Shape.transformGeometry(scale_matrix)
+    
+    # Create a temporary document object to hold the scaled shape
+    temp_doc = App.newDocument("TempMeshExport")
+    temp_part = temp_doc.addObject("Part::Feature", "ScaledMesh")
+    temp_part.Shape = scaled_shape
+    
+    # Export the scaled mesh
+    Mesh.export([temp_part], mesh_path)
+    
+    # Clean up temporary document
+    App.closeDocument("TempMeshExport")
+    
     return mesh_path
 
 def get_inertial(body, name=None):
