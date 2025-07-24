@@ -17,7 +17,7 @@ def get_link_name_from_reference(ref):
     return None
 
 def export_mesh(body, name, export_dir):
-    """Export a FreeCAD body as a mesh and return the mesh path."""
+    """Export a FreeCAD body as a mesh and return the relative mesh path."""
     mesh_path = os.path.join(export_dir, "meshes", f"{name}.{MESH_FORMAT}")
     
     # Import the scale factor
@@ -46,7 +46,8 @@ def export_mesh(body, name, export_dir):
     # Clean up temporary document
     App.closeDocument("TempMeshExport")
     
-    return mesh_path
+    # Return relative path instead of absolute path
+    return f"meshes/{name}.{MESH_FORMAT}"
 
 def get_inertial(body, name=None):
     """Calculate inertial properties for a FreeCAD body."""
