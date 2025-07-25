@@ -7,6 +7,7 @@ from utils_math import format_vector, format_placement
 from logging_utils import log_message, log_newline
 
 EXPORT_HERE = True
+EXPORT_HERE = False
 
 def get_export_dir():
     """Get the export directory based on configuration"""
