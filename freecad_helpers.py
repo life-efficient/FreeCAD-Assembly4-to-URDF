@@ -11,10 +11,142 @@ PLA_DENSITY = 1240
 
 
 def get_link_name_from_reference(ref):
-    """Extract the link name from a FreeCAD joint reference tuple."""
-    if ref and len(ref) == 2 and len(ref[1]) > 0:
-        return ref[1][0].split('.')[0]
-    return None
+    """Extract the link name from a FreeCAD joint reference tuple.
+    Returns a list of possible names to try (for subassembly refs like 'SubAssembly.BodyName').
+    Handles string paths, object references, and (Object, SubElement) tuples."""
+    if not ref or len(ref) < 2 or not ref[1]:
+        return []
+    first = ref[1][0]
+    candidates = []
+    obj = first
+    if isinstance(first, (list, tuple)) and len(first) > 0:
+        obj = first[0]  # (Object, SubElement) -> Object
+    if hasattr(obj, "Name"):
+        candidates.append(obj.Name)
+        if getattr(obj, "LinkedObject", None):
+            candidates.append(obj.LinkedObject.Name)
+    if isinstance(first, str):
+        for sep in (".", "#"):
+            parts = first.split(sep)
+            if parts:
+                candidates.append(parts[0])
+            if len(parts) > 1:
+                candidates.append(parts[-1])
+        if first not in candidates:
+            candidates.append(first)
+    return [c for c in candidates if c]
+
+
+def get_link_name_from_reference_single(ref):
+    """Return first candidate or None (for backward compatibility)."""
+    candidates = get_link_name_from_reference(ref)
+    return candidates[0] if candidates else None
+
+
+def _has_ancestor(child_obj, ancestor_obj):
+    """Check if ancestor_obj is in the parent chain of child_obj (Group or GeoFeatureGroup)."""
+    if child_obj is None or ancestor_obj is None:
+        return False
+    p = child_obj
+    seen = set()
+    while p:
+        if id(p) in seen:
+            break
+        seen.add(id(p))
+        if p is ancestor_obj:
+            return True
+        p = getattr(p, "getParentGeoFeatureGroup", lambda: None)()
+    return False
+
+
+def resolve_object_to_link_names(obj, links_dict):
+    """Resolve an object (e.g. ObjectToGround) to matching link names.
+    Handles App::Part, App::Link, nested Groups - traverses to find bodies/links.
+    Matches by: (1) name in links_dict, (2) object identity with link.body, (3) link.part.
+    Also matches by (doc, name) for cross-document links.
+    Fallback: when obj is a container (AssemblyLink etc.), find links whose part has obj as ancestor.
+    links_dict: {link_name: FreeCADLink}"""
+    if obj is None:
+        log_message("[resolve] obj is None")
+        return []
+    obj_name = getattr(obj, "Name", None)
+    obj_type = type(obj).__name__
+    log_message(f"[resolve] Resolving ObjectToGround: {obj_name} ({obj_type})")
+    found = set()
+    visited = set()
+    traversed = []  # for logging
+    link_names = set(links_dict.keys())
+    body_to_name = {id(link.body): name for name, link in links_dict.items() if link.body}
+    part_to_name = {id(link.part): name for name, link in links_dict.items() if getattr(link, "part", None)}
+    log_message(f"[resolve] link_names={list(link_names)}, part ids={list(part_to_name.keys())[:3]}..., body ids={list(body_to_name.keys())[:3]}...")
+    # For cross-document: (DocName, ObjName) -> link_name
+    docname_name_to_link = {}
+    for name, link in links_dict.items():
+        for o in (getattr(link, "part", None), getattr(link, "body", None)):
+            if o and hasattr(o, "Document") and hasattr(o, "Name"):
+                doc = getattr(o, "Document", None)
+                doc_name = getattr(doc, "Name", None) if doc else None
+                if doc_name is not None and o.Name:
+                    docname_name_to_link[(doc_name, o.Name)] = name
+    log_message(f"[resolve] docname_name_to_link keys (doc,name)={list(docname_name_to_link.keys())[:5]}")
+
+    def collect(o, depth=0):
+        if o is None or id(o) in visited:
+            return
+        visited.add(id(o))
+        name = getattr(o, "Name", None)
+        type_id = getattr(o, "TypeId", type(o).__name__)
+        traversed.append((depth, name, type_id, id(o)))
+        match_reason = None
+        if name and name in link_names:
+            found.add(name)
+            match_reason = "name"
+        if id(o) in body_to_name:
+            found.add(body_to_name[id(o)])
+            match_reason = "body_id"
+        if id(o) in part_to_name:
+            found.add(part_to_name[id(o)])
+            match_reason = "part_id"
+        doc_name = getattr(getattr(o, "Document", None), "Name", None)
+        if doc_name and name and (doc_name, name) in docname_name_to_link:
+            found.add(docname_name_to_link[(doc_name, name)])
+            match_reason = "doc_name"
+        if match_reason:
+            log_message(f"[resolve]   MATCH at depth {depth}: {name} ({type_id}) id={id(o)} -> {match_reason}")
+        # Assembly4 LCS: get parent part from Support (can be (Object, SubElement) or object with .Object)
+        if hasattr(o, "Support") and o.Support:
+            for s in (o.Support if isinstance(o.Support, (list, tuple)) else [o.Support]):
+                ref = s.Object if hasattr(s, "Object") else (s[0] if isinstance(s, (list, tuple)) and s else None)
+                if ref:
+                    collect(ref, depth + 1)
+        # LinkedObject - for AssemblyLink/App::Link, gets the linked assembly or body
+        lo = getattr(o, "LinkedObject", None)
+        if lo:
+            log_message(f"[resolve]   traversing LinkedObject of {name} -> {getattr(lo, 'Name', None)}")
+            collect(lo, depth + 1)
+        # Group - but NOT for Body or Link->Body (those contain Pad, Sketch, Chamfer - not links)
+        lo_type = getattr(lo, "TypeId", None) if lo else None
+        skip_group = type_id == "PartDesign::Body" or (type_id == "App::Link" and lo_type == "PartDesign::Body")
+        grp = getattr(o, "Group", None)
+        if grp and not skip_group:
+            log_message(f"[resolve]   traversing Group of {name} ({len(grp)} children): {[getattr(c, 'Name', None) for c in grp[:8]]}{'...' if len(grp) > 8 else ''}")
+            for child in grp:
+                collect(child, depth + 1)
+
+    collect(obj)
+
+    # Fallback: AssemblyLink/container may not expose Group; find links whose part has obj as ancestor
+    if not found and obj:
+        log_message("[resolve] No matches from traversal; trying _has_ancestor fallback")
+        for name, link in links_dict.items():
+            part = getattr(link, "part", None)
+            if part:
+                has_it = _has_ancestor(part, obj)
+                if has_it:
+                    log_message(f"[resolve]   _has_ancestor: {name} (part {getattr(part, 'Name', None)}) has obj as ancestor")
+                    found.add(name)
+    log_message(f"[resolve] Result: found={list(found)}, traversed {len(traversed)} objects")
+    return list(found)
 
 def export_mesh(body, name, export_dir):
     """Export a FreeCAD body as a mesh and return the relative mesh path."""

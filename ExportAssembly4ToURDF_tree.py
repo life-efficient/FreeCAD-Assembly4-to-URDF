@@ -2,7 +2,7 @@ import FreeCAD as App
 import os
 
 from utils_io import ensure_dir
-from freecad_helpers import export_mesh, get_inertial, get_link_name_from_reference, get_mesh_offset, get_joint_transform, get_joint_axis, get_global_placement
+from freecad_helpers import export_mesh, get_inertial, get_link_name_from_reference, get_mesh_offset, get_joint_transform, get_joint_axis, get_global_placement, resolve_object_to_link_names
 from utils_math import format_vector, format_placement
 from logging_utils import log_message, log_newline
 
@@ -113,6 +113,29 @@ def find_joints_group(assembly):
                 return obj
     return None
 
+
+def collect_all_joints(assembly):
+    """Collect joints from main assembly and any subassemblies that have Joints groups."""
+    joint_objs = []
+    seen_joints = set()
+
+    def collect(obj):
+        if obj is None:
+            return
+        joints_group = find_joints_group(obj)
+        if joints_group and joints_group.Group:
+            for j in joints_group.Group:
+                if id(j) not in seen_joints:
+                    seen_joints.add(id(j))
+                    joint_objs.append(j)
+        if getattr(obj, "Group", None):
+            for child in obj.Group:
+                if getattr(child, "Group", None):
+                    collect(child)
+
+    collect(assembly)
+    return joint_objs
+
 # # --- New helper functions ---
 # def compute_joint_transform(parent_placement, child_placement):
 #     # Returns the URDF joint <origin> transform
@@ -126,9 +149,9 @@ def find_joints_group(assembly):
 def get_joint_placements(joint, link_name):
     reference1 = getattr(joint, "Reference1", None)
     reference2 = getattr(joint, "Reference2", None)
-    link1 = get_link_name_from_reference(reference1)
-    link2 = get_link_name_from_reference(reference2)
-    if link1 == link_name:
+    link1_candidates = get_link_name_from_reference(reference1)
+    link2_candidates = get_link_name_from_reference(reference2)
+    if link_name in link1_candidates:
         parent_placement = getattr(joint, "Placement1", None)
         child_placement = getattr(joint, "Placement2", None)
     else:
@@ -139,6 +162,7 @@ def get_joint_placements(joint, link_name):
 # --- Simplified handle_link and handle_joint ---
 class FreeCADLink:
     def __init__(self, part):
+        self.part = part
         if part.TypeId == "App::Link":
             self.body = part.LinkedObject
             self.name = part.Name
@@ -219,9 +243,9 @@ class FreeCADJoint:
         self.link_name = link_name
         reference1 = getattr(joint, "Reference1", None)
         reference2 = getattr(joint, "Reference2", None)
-        link1 = get_link_name_from_reference(reference1)
-        link2 = get_link_name_from_reference(reference2)
-        if link1 == link_name:
+        link1_candidates = get_link_name_from_reference(reference1)
+        link2_candidates = get_link_name_from_reference(reference2)
+        if link_name in link1_candidates:
             self.from_parent_origin = getattr(joint, "Placement1", None)
             self.from_child_origin = getattr(joint, "Placement2", None)
         else:
@@ -326,6 +350,35 @@ def build_assembly_tree(robot_parts, joint_objs):
     # Build all FreeCADLink objects
     links = {part.Name: FreeCADLink(part) for part in robot_parts}
     log_message('[DEBUG] Link names in links dict: ' + ', '.join(links.keys()))
+
+    visited_links = set()
+    visited_joints = set()
+
+    def build_tree(link):
+        if link.name in visited_links:
+            return
+        visited_links.add(link.name)
+        link.joints = []
+        for joint_obj in joint_objs:
+            ref1_candidates = get_link_name_from_reference(getattr(joint_obj, 'Reference1', None))
+            ref2_candidates = get_link_name_from_reference(getattr(joint_obj, 'Reference2', None))
+            if link.name in ref1_candidates:
+                other_candidates = ref2_candidates
+            elif link.name in ref2_candidates:
+                other_candidates = ref1_candidates
+            else:
+                continue
+            other_link_name = next((r for r in other_candidates if r in links and r != link.name), None)
+            if other_link_name:
+                joint = FreeCADJoint(joint_obj, link.name, child_link=links[other_link_name], parent_link=link)
+                joint.child_link = links[other_link_name]
+                joint_id = id(joint_obj)
+                if joint_id in visited_joints:
+                    continue
+                visited_joints.add(joint_id)
+                link.joints.append(joint)
+                build_tree(joint.child_link)
+
     # 1. Identify the root joint (grounded)
     root_joint = None
     for joint_obj in joint_objs:
@@ -335,59 +388,41 @@ def build_assembly_tree(robot_parts, joint_objs):
             root_joint = joint_obj
             break
     if not root_joint:
-        log_message('[DEBUG] No grounded joint found!')
-        return None, links, []
-    # 2. Find the single link this joint attaches to (from Placement1 or Placement2)
-    ref1 = get_link_name_from_reference(getattr(root_joint, 'Reference1', None))
-    ref2 = get_link_name_from_reference(getattr(root_joint, 'Reference2', None))
-    candidates = [ref for ref in [ref1, ref2] if ref in links]
-    if getattr(root_joint, 'ObjectToGround', None):
-        obj_to_ground = getattr(root_joint, 'ObjectToGround', None)
-        if hasattr(obj_to_ground, 'Name') and obj_to_ground.Name in links:
-            candidates.append(obj_to_ground.Name)
-    candidates = list(set(candidates))
-    if len(candidates) != 1:
-        raise RuntimeError(f"ERROR: Expected exactly one grounded link, found: {candidates}")
+        raise RuntimeError(
+            "ERROR: No grounded joint found. Assembly must have a joint with 'ground' in its Name or JointType "
+            "(e.g. 'GroundedJoint' or type 'Ground') that identifies which link is fixed to the world."
+        )
+    # 2. Find the single link this joint attaches to (from Reference1, Reference2, or ObjectToGround)
+    ref1 = getattr(root_joint, 'Reference1', None)
+    ref2 = getattr(root_joint, 'Reference2', None)
+    obj_to_ground = getattr(root_joint, 'ObjectToGround', None)
+    log_message(f"[root] Ground joint: {getattr(root_joint, 'Name', None)}, Ref1={ref1}, Ref2={ref2}, ObjectToGround={getattr(obj_to_ground, 'Name', obj_to_ground) if obj_to_ground else None}")
+    ref1_candidates = get_link_name_from_reference(ref1)
+    ref2_candidates = get_link_name_from_reference(ref2)
+    log_message(f"[root] ref1_candidates={ref1_candidates}, ref2_candidates={ref2_candidates}")
+    candidates = [r for r in ref1_candidates + ref2_candidates if r in links]
+    log_message(f"[root] candidates from refs: {candidates}")
+    if obj_to_ground:
+        obj_candidates = resolve_object_to_link_names(obj_to_ground, links)
+        log_message(f"[root] candidates from ObjectToGround: {obj_candidates}")
+        candidates.extend(obj_candidates)
+    candidates = list(dict.fromkeys(c for c in candidates if c in links))  # unique, preserve order
+    log_message(f"[root] final candidates: {candidates}")
+    if len(candidates) == 0:
+        msg = (
+            f"Grounded joint must identify at least one link, but got 0. "
+            f"Link names: {list(links.keys())}. "
+            f"Ref1={repr(ref1)[:80]}, Ref2={repr(ref2)[:80]}, "
+            f"ObjectToGround={getattr(obj_to_ground, 'Name', obj_to_ground) if obj_to_ground else None} ({type(obj_to_ground).__name__ if obj_to_ground else 'None'})"
+        )
+        raise RuntimeError(f"ERROR: {msg}")
+    if len(candidates) > 1:
+        # ObjectToGround points to subassembly with multiple parts - pick first (e.g. assembly origin)
+        log_message(f"[root] Multiple links in grounded subassembly: {candidates}, picking first: {candidates[0]}")
+        candidates = [candidates[0]]
     root_link = links[candidates[0]]
     log_message(f"[DEBUG] Grounded joint found: {getattr(root_joint, 'Name', None)} grounding {root_link.name}")
     # 3. Recursively build the tree
-    visited_links = set()
-    visited_joints = set()
-    def build_tree(link):
-        if link.name in visited_links:
-            return
-        visited_links.add(link.name)
-        link.joints = []
-        for joint_obj in joint_objs:
-
-            ref1 = get_link_name_from_reference(getattr(joint_obj, 'Reference1', None))
-            ref2 = get_link_name_from_reference(getattr(joint_obj, 'Reference2', None))
-            # Only add the joint to the current link if the link is the parent/root in this recursion
-            if link.name == ref1:
-                other_link_name = ref2
-            elif link.name == ref2:
-                other_link_name = ref1
-            else:
-                continue
-            if other_link_name and other_link_name in links:
-                joint_name = getattr(joint_obj, 'Name', '<no name>')
-                joint_type = getattr(joint_obj, 'JointType', '<none>')
-                # log_message(f"[TREE BUILD] Link '{link.name}' found joint '{joint_name}' (type: {joint_type}) to '{other_link_name}'")
-                joint = FreeCADJoint(joint_obj, link.name, child_link=links[other_link_name], parent_link=link)
-                joint.child_link = links[other_link_name]
-
-                # SKIP JOINTS ALREADY VISITED - these are the joints that are already in the tree and are (grand)parents of this one
-                joint_id = id(joint_obj)
-                if joint_id in visited_joints:
-                    # log_message(f"[TREE BUILD] Skipping already visited joint '{joint_name}'")
-                    continue
-                visited_joints.add(joint_id)
-
-                # ADD JOINT TO LINK AND RECURSE
-                # log_message(f"[TREE BUILD] Adding joint '{joint_name}' to link '{link.name}'")
-                # log_message(f"[TREE BUILD] Setting child_link of joint '{joint_name}' to '{other_link_name}'")
-                link.joints.append(joint)
-                build_tree(joint.child_link)
     build_tree(root_link)
     return root_link, links, []
 
@@ -436,22 +471,50 @@ def convert_assembly_to_urdf(export_dir):
         print('no assembly found')
         return
     robot_parts = []
+    seen_parts = set()  # id(obj) to avoid duplicates
+
+    def collect_parts(obj, depth=0):
+        if obj is None:
+            return
+        name = getattr(obj, "Name", None)
+        type_id = getattr(obj, "TypeId", None)
+        linked = getattr(obj, "LinkedObject", None)
+        if linked:
+            linked_type = getattr(linked, "TypeId", None)
+            if linked_type == "PartDesign::Body":
+                if id(obj) not in seen_parts:
+                    seen_parts.add(id(obj))
+                    robot_parts.append(obj)
+                    log_message(f"[collect_parts] depth={depth}: found part {name} (Link->Body)")
+            elif getattr(linked, "Group", None):
+                # Link/AssemblyLink to Assembly/Part - recurse into linked assembly to get parts
+                log_message(f"[collect_parts] depth={depth}: {name} ({type_id}) is Link->{linked_type}, recursing LinkedObject.Group ({len(linked.Group)} children)")
+                for child in linked.Group:
+                    collect_parts(child, depth + 1)
+        elif type_id == "PartDesign::Body":
+            if id(obj) not in seen_parts:
+                seen_parts.add(id(obj))
+                robot_parts.append(obj)
+                log_message(f"[collect_parts] depth={depth}: found part {name} (PartDesign::Body)")
+        # Recurse into our own Group (for subassemblies) - but NOT PartDesign::Body (features like Pad, Sketch)
+        if type_id not in ("PartDesign::Body",) and getattr(obj, "Group", None):
+            for child in obj.Group:
+                collect_parts(child, depth + 1)
+
+    log_message("[collect_parts] assembly.Group: " + str([getattr(o, "Name", None) for o in assembly.Group]))
     for obj in assembly.Group:
-        if obj.TypeId == "App::Link" and getattr(obj, "LinkedObject", None) and getattr(obj.LinkedObject, "TypeId", None) == "PartDesign::Body":
-            robot_parts.append(obj)
-            # log_message(f"[DEBUG] Found robot part: {obj.Name}, {get_global_placement(obj)}")
-        elif obj.TypeId == "PartDesign::Body":
-            robot_parts.append(obj)
-    # Also collect recursively
-    for obj in assembly.Group:
-        if hasattr(obj, "Group"):
-            for sub in obj.Group:
-                if sub.TypeId == "App::Link" and getattr(sub, "LinkedObject", None) and getattr(sub.LinkedObject, "TypeId", None) == "PartDesign::Body":
-                    robot_parts.append(sub)
-                elif sub.TypeId == "PartDesign::Body":
-                    robot_parts.append(sub)
-    joints_group = find_joints_group(assembly) if assembly else None
-    joint_objs = joints_group.Group if joints_group else []
+        collect_parts(obj)
+    log_message(f"[collect_parts] total robot_parts: {len(robot_parts)} -> {[getattr(p, 'Name', None) for p in robot_parts]}")
+    # Log parent chain for first part to understand hierarchy
+    if robot_parts:
+        p = robot_parts[0]
+        chain = []
+        while p:
+            chain.append(f"{getattr(p, 'Name', None)}({getattr(p, 'TypeId', '?')[:20]})")
+            p = getattr(p, "getParentGeoFeatureGroup", lambda: None)()
+        log_message(f"[collect_parts] parent chain of {getattr(robot_parts[0], 'Name', None)}: {' -> '.join(chain)}")
+    joint_objs = collect_all_joints(assembly) if assembly else []
+    log_message(f"[joints] collected {len(joint_objs)} joints: {[getattr(j, 'Name', None) for j in joint_objs]}")
     # print('Joint names and JointType values:')
     # for joint in joint_objs:
     #     print(f"  {getattr(joint, 'Name', '<no name>')}: JointType = {getattr(joint, 'JointType', '<none>')}")
