@@ -1,7 +1,6 @@
 """
-Assembly4 to URDF export. Flattened link model: all links from all assemblies
-are collected into a single dict. Grounded assembly/link is resolved; refs
-pointing to assemblies resolve to the grounded link of that assembly.
+Assembly4 to URDF export. First pass: FreeCADAssembly flattens assemblies/parts
+into a list of FreeCADLink. Remaining steps unchanged.
 """
 import FreeCAD as App
 import os
@@ -9,9 +8,10 @@ import os
 from utils_io import ensure_dir
 from freecad_helpers import (
     export_mesh, get_inertial, get_link_names_from_reference_expanded,
-    get_mesh_offset, get_joint_transform, get_joint_axis, get_global_placement,
+    get_mesh_offset, get_joint_transform, get_joint_axis,
     resolve_object_to_link_names,
 )
+from freecad_assembly import FreeCADAssembly
 from utils_math import format_vector, format_placement
 
 DOC = App.ActiveDocument
@@ -45,50 +45,6 @@ def get_export_dir():
 
 
 # --- Collection ---
-
-def _is_body_or_link_to_body(obj):
-    """True if obj is a PartDesign::Body or App::Link chain ending in PartDesign::Body."""
-    t = getattr(obj, "TypeId", "")
-    lo = getattr(obj, "LinkedObject", None)
-    if t == "PartDesign::Body":
-        return True, obj
-    if t == "App::Link" and lo:
-        # Follow chain: Link->Link->Body or Link->Body
-        target = lo
-        while target and getattr(target, "TypeId", "") == "App::Link":
-            target = getattr(target, "LinkedObject", None)
-        if target and getattr(target, "TypeId", "") == "PartDesign::Body":
-            return True, obj
-    return False, None
-
-
-def collect_links_flattened(assembly):
-    """Recursively collect all PartDesign::Body parts (as App::Link) from assembly and subassemblies. Returns flat list."""
-    result = []
-    seen = set()
-
-    def visit(obj):
-        if obj is None:
-            return
-        if id(obj) in seen:
-            return
-        seen.add(id(obj))
-        ok, part = _is_body_or_link_to_body(obj)
-        if ok:
-            result.append(part)
-            return
-        for child in getattr(obj, "Group", []) or []:
-            visit(child)
-        lo = getattr(obj, "LinkedObject", None)
-        if lo:
-            visit(lo)
-            for c in getattr(lo, "Group", []) or []:
-                visit(c)
-
-    for child in getattr(assembly, "Group", []) or []:
-        visit(child)
-    return result
-
 
 def find_joints_group(assembly):
     if not assembly or not getattr(assembly, "Group", None):
@@ -190,29 +146,7 @@ def build_assembly_grounded_map(joint_list, links_dict):
     return grounded
 
 
-# --- Link and joint classes ---
-
-class FreeCADLink:
-    def __init__(self, part):
-        self.part = part
-        self.name = part.Name
-        lo = getattr(part, "LinkedObject", None)
-        if part.TypeId == "App::Link" and lo:
-            # Follow Link->Link->Body chain
-            target = lo
-            while target and getattr(target, "TypeId", "") == "App::Link":
-                target = getattr(target, "LinkedObject", None)
-            self.body = target if getattr(target, "TypeId", "") == "PartDesign::Body" else lo
-        else:
-            self.body = part
-        if not self.body or getattr(self.body, "TypeId", "") != "PartDesign::Body":
-            raise RuntimeError(f"{self.name} is not a PartDesign::Body")
-        shape = getattr(self.body, "Shape", None)
-        if not shape or shape.isNull():
-            raise RuntimeError(f"{self.name} has no valid shape")
-        self.joints = []
-        self.global_placement = get_global_placement(part)
-
+# --- Joint and URDF classes ---
 
 class FreeCADJoint:
     def __init__(self, joint_obj, parent_link_name, child_link, links_dict, assembly_grounded_map):
@@ -412,21 +346,29 @@ def build_tree(root_link, links_dict, joint_list, assembly_grounded_map):
     return root_link
 
 
-def create_urdf(f, link, export_dir, parent_joint=None, is_root=False, visited_links=None, visited_joints=None):
+LINK_LIMIT = 28  # Stop after this many links; set to None to disable
+
+def create_urdf(f, link, export_dir, parent_joint=None, is_root=False, visited_links=None, visited_joints=None, link_count=None):
     visited_links = visited_links or set()
     visited_joints = visited_joints or set()
+    link_count = link_count or [0]
     if link.name in visited_links:
         return
+    if LINK_LIMIT is not None and link_count[0] >= LINK_LIMIT:
+        return
     visited_links.add(link.name)
+    link_count[0] += 1
     urdf_link = URDFLink(link, export_dir, is_root=is_root, parent_joint=parent_joint)
     urdf_link.write(f)
     for j in link.joints:
         if id(j.joint) in visited_joints:
             continue
+        if LINK_LIMIT is not None and link_count[0] >= LINK_LIMIT:
+            return
         visited_joints.add(id(j.joint))
         urdf_joint = URDFJoint(parent_joint, j)
         urdf_joint.write(f)
-        create_urdf(f, j.child_link, export_dir, parent_joint=j, is_root=False, visited_links=visited_links, visited_joints=visited_joints)
+        create_urdf(f, j.child_link, export_dir, parent_joint=j, is_root=False, visited_links=visited_links, visited_joints=visited_joints, link_count=link_count)
 
 
 # --- Main ---
@@ -450,9 +392,10 @@ def convert_assembly_to_urdf(export_dir):
         print("No assembly found")
         return
 
-    parts = collect_links_flattened(assembly)
+    fc_assembly = FreeCADAssembly(assembly)
+    links = fc_assembly.get_links()
+    links_dict = {link.name: link for link in links}
     joint_list = collect_joints_with_assembly(assembly)
-    links_dict = {p.Name: FreeCADLink(p) for p in parts}
     assembly_grounded_map = build_assembly_grounded_map(joint_list, links_dict)
 
     print(f"Links: {len(links_dict)}, Joints: {len(joint_list)}")
@@ -461,6 +404,20 @@ def convert_assembly_to_urdf(export_dir):
     print(f"[root] {root_link.name}")
 
     build_tree(root_link, links_dict, joint_list, assembly_grounded_map)
+
+    # Diagnostic: which links are in the tree vs orphaned
+    def collected(link, seen=None):
+        seen = seen or set()
+        if link.name in seen:
+            return seen
+        seen.add(link.name)
+        for j in getattr(link, "joints", []) or []:
+            collected(j.child_link, seen)
+        return seen
+    in_tree = collected(root_link)
+    orphaned = sorted(k for k in links_dict if k not in in_tree)
+    if orphaned:
+        print(f"[orphaned links not reached from root: {len(orphaned)}] {orphaned}")
 
     urdf_path = os.path.join(export_dir, "robot.urdf")
     with open(urdf_path, "w") as f:

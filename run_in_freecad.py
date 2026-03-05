@@ -1,6 +1,8 @@
 import importlib
 import freecad_helpers
 importlib.reload(freecad_helpers)
+import freecad_assembly
+importlib.reload(freecad_assembly)
 import logging_utils
 importlib.reload(logging_utils)
 import utils_math

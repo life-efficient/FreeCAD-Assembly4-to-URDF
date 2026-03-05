@@ -44,7 +44,9 @@ def get_link_name_from_reference_single(ref):
 
 
 def _get_obj_from_ref(ref):
-    """Extract the document object from an Assembly4 reference tuple."""
+    """Extract the document object from an Assembly4 reference tuple.
+    Handles 'Parent.Child' / 'Parent#Child': returns the actual part when ref points
+    to a part inside a subassembly (not just the subassembly)."""
     if not ref or len(ref) < 2 or not ref[1]:
         return None
     first = ref[1][0]
@@ -53,11 +55,34 @@ def _get_obj_from_ref(ref):
     if hasattr(first, "Name"):
         return first
     if isinstance(first, str):
-        # e.g. "Shoulder_V001.Edge97" or "Rack.LCS" - part before dot is link/part name
         doc = ref[0].Document if ref and hasattr(ref[0], "Document") else None
-        if doc:
-            name = first.split(".")[0].split("#")[0]
-            return doc.getObject(name) if name else None
+        if not doc:
+            return None
+        # Try full string first (object name can sometimes contain dots)
+        obj = doc.getObject(first)
+        if obj:
+            return obj
+        # Split "Parent.Child" or "Parent#Child" - part before sep is container, after is nested part
+        for sep in (".", "#"):
+            if sep in first:
+                parent_name, child_name = first.split(sep, 1)[0], first.split(sep, 1)[-1]
+                if not parent_name:
+                    continue
+                parent = doc.getObject(parent_name)
+                if parent and child_name:
+                    # Find child in parent's Group tree (Group contains Parts/Bodies; subelements like Edge97 don't)
+                    for c in getattr(parent, "Group", []) or []:
+                        if getattr(c, "Name", "") == child_name:
+                            return c
+                        for gc in getattr(c, "Group", []) or []:
+                            if getattr(gc, "Name", "") == child_name:
+                                return gc
+                    # child_name not in Group -> subelement (Edge97, LCS, etc.), use parent
+                    return parent
+                return parent
+        # Fallback: use part before dot/pound only (original behavior)
+        name = first.split(".")[0].split("#")[0]
+        return doc.getObject(name) if name else None
     return None
 
 
@@ -379,68 +404,9 @@ def get_origin_alignment(from_placement, to_placement):
 def get_mesh_offset(parent_joint):
     """
     Compute the mesh offset placement for URDF export.
-    This version removes the alignment step: just use the inverse of from_child_origin.
     Returns a FreeCAD.Placement.
     """
-    # return zero offset
-    # return App.Placement(App.Vector(0,0,0), App.Rotation(0,0,0,0))
-    # servo points right
-
-    # OPTION 0: Just transform
-    # return parent_joint.from_child_origin
-    # up instead of across
-
-    # OPTION 1: Just inverse 
     return parent_joint.from_child_origin.inverse()
-    # flipped to incorrect side
-
-    alignment = get_origin_alignment(
-        parent_joint.from_parent_origin, 
-        parent_joint.from_child_origin
-    )
-
-    # return alignment
-
-    # return alignment.multiply(parent_joint.from_child_origin)
-
-    # OPTION 2: Align and then inverse (transformations happen from right to left)
-    return alignment.multiply(parent_joint.from_child_origin.inverse())
-    # this works - positioning the servo correctly
-    # to me, this indicates that the order of application is from left to right - firstly align the axes, then move along the transform
-
-    # OPTION 3: Align and then inverse
-    # return parent_joint.from_child_origin.multiply(alignment).inverse()
-    # seems to work for servo but not for the other joints - likely a coincidence
-
-    # OPTION 4: Inverse then align
-    # return alignment.multiply(parent_joint.from_child_origin)
-    # servo translated down instead of out -Z by what should be +Y
-
-    # OPTION 5: 
-    return parent_joint.from_child_origin.multiply(alignment)
-    # servo upside down and rotates about its center
-
-    # OPTION 6: 
-    return parent_joint.from_child_origin.inverse().multiply(alignment)
-
-    # from_child_origin = parent_joint.from_child_origin
-    # # log_message(f"[DEBUG][mesh_offset] from_child_origin: Placement [Pos=({clean(from_child_origin.Base.x)}, {clean(from_child_origin.Base.y)}, {clean(from_child_origin.Base.z)}), Axis/Angle=({clean(from_child_origin.Rotation.Axis.x)}, {clean(from_child_origin.Rotation.Axis.y)}, {clean(from_child_origin.Rotation.Axis.z)}), angle={clean(from_child_origin.Rotation.Angle)}]")
-    # # # --- Old implementation with alignment ---
-    # from_parent_origin = parent_joint.from_parent_origin
-    # log_message(f"[DEBUG][mesh_offset] from_parent_origin: Placement [Pos=({clean(from_parent_origin.Base.x)}, {clean(from_parent_origin.Base.y)}, {clean(from_parent_origin.Base.z)}), Axis/Angle=({clean(from_parent_origin.Rotation.Axis.x)}, {clean(from_parent_origin.Rotation.Axis.y)}, {clean(from_parent_origin.Rotation.Axis.z)}), angle={clean(from_parent_origin.Rotation.Angle)}]")
-    # joint_to_child_origin = from_child_origin.inverse()
-    # # # TODO should these values below be inversed for computing alignment?
-    # log_message(f"[DEBUG][mesh_offset] alignment: axis={clean(alignment.Rotation.Axis.x)}, {clean(alignment.Rotation.Axis.y)}, {clean(alignment.Rotation.Axis.z)}, angle={clean(alignment.Rotation.Angle)}")
-    # aligned_child = alignment.mu
-    # log_message(f"[DEBUG][mesh_offset] aligned_child: Placement [Pos=({clean(aligned_child.Base.x)}, {clean(aligned_child.Base.y)}, {clean(aligned_child.Base.z)}), Axis/Angle=({clean(aligned_child.Rotation.Axis.x)}, {clean(aligned_child.Rotation.Axis.y)}, {clean(aligned_child.Rotation.Axis.z)}), angle={clean(aligned_child.Rotation.Angle)}]")
-    # return aligned_child
-
-    # --- New implementation: just inverse ---
-    return alignment.multiply(parent_joint.from_child_origin)
-    log_message(f"[DEBUG][mesh_offset] from_child_origin: {clean_placement(parent_joint.from_child_origin)}")
-    mesh_offset = parent_joint.from_child_origin.inverse()
-    log_message(f"[DEBUG][mesh_offset] mesh_offset: Placement [Pos=({clean(mesh_offset.Base.x)}, {clean(mesh_offset.Base.y)}, {clean(mesh_offset.Base.z)}), Axis/Angle=({clean(mesh_offset.Rotation.Axis.x)}, {clean(mesh_offset.Rotation.Axis.y)}, {clean(mesh_offset.Rotation.Axis.z)}), angle={clean(mesh_offset.Rotation.Angle)}]")
-    return mesh_offset
 
 
 def get_joint_transform(prev_joint, curr_joint):
@@ -452,26 +418,6 @@ def get_joint_transform(prev_joint, curr_joint):
         assert hasattr(prev_joint, 'from_child_origin') and prev_joint.from_child_origin is not None and curr_joint.from_parent_origin is not None
         product = prev_joint.from_child_origin.inverse().multiply(curr_joint.from_parent_origin)
         transform = product
-        # transform = joint_to_joint_in_parent_joint_frame.multiply(alignment)
-        # option 1: 
-        # transform = alignment.multiply(prev_joint.from_child_origin.inverse()).multiply(curr_joint.from_parent_origin)
-        # # option 2: 
-        # transform = alignment.multiply(prev_joint.from_child_origin.inverse().multiply(curr_joint.from_parent_origin))
-        # # option 3:
-        # transform = curr_joint.from_parent_origin.multiply(prev_joint.from_child_origin.inverse()).multiply(alignment)
-        # # option 5:
-        # transform = alignment.multiply(curr_joint.from_parent_origin.multiply(prev_joint.from_child_origin.inverse()))
-        # this makes sense if transforms are applied from right to left
-        # however, the working mesh offset calculation seems to work with the opposite order
-        # transform = alignment.multiply(prev_joint.from_child_origin.inverse()).multiply(curr_joint.from_parent_origin)
-        
-        # transform = alignment.multiply(prev_joint.from_child_origin.inverse().multiply(curr_joint.from_parent_origin))
-        # ^GOOD ONE leaves joints in correct position but rotated incorrectly - may just be mesh orientation missing
-
-        # transform = prev_joint.from_child_origin.inverse().multiply(curr_joint.from_parent_origin).multiply(alignment)
-        # ^ totally messed up
-        # transform = curr_joint.from_parent_origin.multiply(prev_joint.from_child_origin.inverse().multiply(alignment))
-        # ^ messed up
     transform = transform.multiply(alignment_transform)
     jname = f"{getattr(curr_joint.parent_link, 'name', '?')}-{getattr(curr_joint.child_link, 'name', '?')}"
     log_joint_transform(jname, curr_joint.from_parent_origin, curr_joint.from_child_origin, alignment_transform, transform)
@@ -483,12 +429,37 @@ def get_joint_axis(prev_joint, curr_joint):
     return App.Vector(0, 0, 1)
 
 def get_global_placement(obj):
+    """Compute placement in global/document frame via parent chain."""
     placement = obj.Placement
     parent = obj.getParentGeoFeatureGroup()
     while parent:
         placement = parent.Placement.multiply(placement)
         parent = parent.getParentGeoFeatureGroup()
     return placement
+
+
+class FreeCADLink:
+    """A single link (part/body) for URDF export."""
+
+    def __init__(self, part):
+        self.part = part
+        self.name = part.Name
+        lo = getattr(part, "LinkedObject", None)
+        if part.TypeId == "App::Link" and lo:
+            target = lo
+            while target and getattr(target, "TypeId", "") == "App::Link":
+                target = getattr(target, "LinkedObject", None)
+            self.body = target if getattr(target, "TypeId", "") == "PartDesign::Body" else lo
+        else:
+            self.body = part
+        if not self.body or getattr(self.body, "TypeId", "") != "PartDesign::Body":
+            raise RuntimeError(f"{self.name} is not a PartDesign::Body")
+        shape = getattr(self.body, "Shape", None)
+        if not shape or shape.isNull():
+            raise RuntimeError(f"{self.name} has no valid shape")
+        self.joints = []
+        self.global_placement = get_global_placement(part)
+
 
 def get_joint_frame_alignment(joint):
     """
