@@ -1,6 +1,7 @@
 import FreeCAD as App
 import Mesh
 import os
+import re
 
 # --- Logging helpers (moved from ExportAssembly4ToURDF_tree.py) ---
 # Remove log_message and log_newline from this file and import from logging_utils
@@ -43,21 +44,111 @@ def get_link_name_from_reference_single(ref):
     return candidates[0] if candidates else None
 
 
-def _get_obj_from_ref(ref):
+def _find_corresponding_in_instance(template_obj, instance_context):
+    """When ref is an object (not string), find the instance's corresponding object.
+    Template and instance share structure; match by flattened tree order."""
+    template = getattr(instance_context, "LinkedObject", None)
+    if not template or template is instance_context or not hasattr(template, "Group"):
+        return None
+
+    def flatten_tree(container):
+        out = []
+        for c in getattr(container, "Group", []) or []:
+            out.append(c)
+            out.extend(flatten_tree(c))
+        return out
+
+    t_flat = flatten_tree(template)
+    i_flat = flatten_tree(instance_context)
+    if template_obj not in t_flat or len(i_flat) != len(t_flat):
+        return None
+    return i_flat[t_flat.index(template_obj)]
+
+
+def _base_name(name):
+    """Strip trailing digits/underscore+digits for matching (e.g. U_Hip_Rotation_V1 -> U_Hip_Rotation_V)."""
+    return re.sub(r"[\d_]*\d+$", "", name) or name
+
+
+def _find_child_in_instance(instance, child_name):
+    """Find object named child_name (or child_name+001 etc.) in instance's Group tree.
+    Used when resolving refs in instance context - FreeCAD suffixes duplicate names (001, 002).
+    Also matches by base name: U_Hip_Rotation_V1 <-> U_Hip_Rotation_V002."""
+
+    def name_matches(name):
+        if name == child_name:
+            return True
+        # FreeCAD appends 001, 002, ... to duplicate object names
+        if len(name) > len(child_name) and name.startswith(child_name):
+            suffix = name[len(child_name):]
+            return suffix.isdigit() or (suffix.startswith("0") and suffix[1:].isdigit())
+        # Base-name match: U_Hip_Rotation_V1 <-> U_Hip_Rotation_V002
+        if _base_name(name) == _base_name(child_name):
+            return True
+        return False
+
+    def search(container):
+        for c in getattr(container, "Group", []) or []:
+            if name_matches(getattr(c, "Name", "")):
+                return c
+            found = search(c)
+            if found:
+                return found
+        return None
+    return search(instance)
+
+
+def _get_obj_from_ref(ref, instance_context=None):
     """Extract the document object from an Assembly4 reference tuple.
     Handles 'Parent.Child' / 'Parent#Child': returns the actual part when ref points
-    to a part inside a subassembly (not just the subassembly)."""
+    to a part inside a subassembly (not just the subassembly).
+
+    When instance_context is set: the same assembly may be instanced multiple times (e.g. Leg_Assembly,
+    Leg_Assembly001). Ref resolution must be scoped to the specific instance so 'Femur' resolves to
+    Femur for instance 1 and Femur001 for instance 2. Use instance_context (the Link) as the
+    container instead of doc.getObject(parent_name) which always returns the first match."""
     if not ref or len(ref) < 2 or not ref[1]:
         return None
     first = ref[1][0]
     if isinstance(first, (list, tuple)) and first:
-        return first[0]
+        first = first[0]
     if hasattr(first, "Name"):
+        if instance_context:
+            corr = _find_corresponding_in_instance(first, instance_context)
+            if corr is not None:
+                return corr
         return first
     if isinstance(first, str):
         doc = ref[0].Document if ref and hasattr(ref[0], "Document") else None
         if not doc:
             return None
+        # Instance-scoped resolution: use instance_context as container for Parent.Child refs
+        if instance_context and ("." in first or "#" in first):
+            for sep in (".", "#"):
+                if sep in first:
+                    parent_name, child_name = first.split(sep, 1)[0], first.split(sep, 1)[-1]
+                    if not parent_name or not child_name:
+                        continue
+                    part_name = parent_name
+                    child_obj = _find_child_in_instance(instance_context, part_name)
+                    if child_obj:
+                        return child_obj
+                    # Fallback: names like U_Hip_Rotation_V1 vs U_Hip_Rotation_V002 don't match; use index-based correspondence
+                    template = getattr(instance_context, "LinkedObject", None)
+                    if template:
+                        t_doc = getattr(template, "Document", doc)
+                        template_obj = t_doc.getObject(part_name) if t_doc else None
+                        if template_obj and _obj_in_group_tree(template_obj, template):
+                            child_obj = _find_corresponding_in_instance(template_obj, instance_context)
+                            if child_obj:
+                                return child_obj
+                    # Fallback: instance Link may have empty Group (external doc); try doc lookup by suffixed name
+                    inst_doc = getattr(instance_context, "Document", None) or doc
+                    for suffix in ("001", "002", "003", ""):
+                        candidate = inst_doc.getObject(part_name + suffix) if suffix else inst_doc.getObject(part_name)
+                        if candidate and (_obj_in_group_tree(candidate, instance_context) or (suffix and getattr(candidate, "Document", None) == inst_doc)):
+                            return candidate
+                    break
         # Try full string first (object name can sometimes contain dots)
         obj = doc.getObject(first)
         if obj:
@@ -145,17 +236,19 @@ def get_link_names_from_reference_precise(ref, links_dict):
     return list(resolved) if resolved else []
 
 
-def get_link_names_from_reference_expanded(ref, links_dict, assembly_grounded_map=None):
+def get_link_names_from_reference_expanded(ref, links_dict, assembly_grounded_map=None, instance_context=None):
     """
     Resolve a joint reference to link names.
     - Link/LCS on link: return that link.
     - Assembly: return grounded link of that assembly (from assembly_grounded_map).
     - LCS on assembly: same as assembly.
     assembly_grounded_map: {id(assembly): link_name} - grounded link per assembly.
+    instance_context: when the same assembly is instanced multiple times, refs must resolve
+        relative to the specific instance (the Link); pass the Link for instance-scoped resolution.
     """
     if not ref:
         return []
-    obj = _get_obj_from_ref(ref)
+    obj = _get_obj_from_ref(ref, instance_context=instance_context)
     if obj is None:
         return []
 

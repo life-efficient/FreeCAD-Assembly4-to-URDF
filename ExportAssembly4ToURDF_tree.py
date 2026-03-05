@@ -1,6 +1,14 @@
 """
 Assembly4 to URDF export. First pass: FreeCADAssembly flattens assemblies/parts
 into a list of FreeCADLink. Remaining steps unchanged.
+
+Instance-scoped subassemblies:
+When the same assembly (e.g. Leg_Assembly) is instanced multiple times (Leg_Assembly,
+Leg_Assembly001), joints live in the shared template but refs must resolve per instance.
+Global resolution (doc.getObject) always returns the first match, so the second instance's
+links (Femur001, Shin001...) would never be matched. Fix: visit the assembly once per
+instance, collect joints with instance context, and resolve refs relative to that
+instance. This generalises to any assembly featuring repeated subassemblies.
 """
 import FreeCAD as App
 import os
@@ -55,32 +63,51 @@ def find_joints_group(assembly):
     return None
 
 
+def _unpack_joint_item(item):
+    """Joint list items are (joint, assembly, instance_context); instance may be None."""
+    if len(item) == 3:
+        return item[0], item[1], item[2]
+    return item[0], item[1], None
+
+
 def collect_joints_with_assembly(assembly):
-    """Collect (joint, owning_assembly) from assembly and subassemblies."""
+    """Collect (joint, owning_assembly, instance_context) from assembly and subassemblies.
+
+    Instance-scoped: when the same LinkedObject is reached from different Link instances
+    (e.g. Leg_Assembly and Leg_Assembly001), we visit once per instance and tag joints
+    with instance_context so ref resolution uses the correct instance's parts.
+    """
     result = []
-    seen_joints = set()
+    # Key by (assembly_id, instance_id): same assembly from different instances = different visits
     seen_assemblies = set()
 
-    def collect(obj):
-        if obj is None or id(obj) in seen_assemblies:
+    def collect(obj, from_instance=None):
+        if obj is None:
             return
-        seen_assemblies.add(id(obj))
+        inst_id = id(from_instance) if from_instance else 0
+        seen_key = (id(obj), inst_id)
+        if seen_key in seen_assemblies:
+            return
+        seen_assemblies.add(seen_key)
         jg = find_joints_group(obj)
         if not jg and getattr(obj, "LinkedObject", None):
             jg = find_joints_group(obj.LinkedObject)
         if jg and getattr(jg, "Group", None):
             for j in jg.Group:
-                if id(j) not in seen_joints:
-                    seen_joints.add(id(j))
-                    result.append((j, obj))
+                # Same joint can appear for multiple instances; tag with instance for ref resolution
+                result.append((j, obj, from_instance))
         for child in getattr(obj, "Group", []) or []:
             if getattr(child, "Group", None):
-                collect(child)
+                collect(child, from_instance=child)
+            lo_child = getattr(child, "LinkedObject", None)
+            if lo_child and getattr(lo_child, "Group", None):
+                if getattr(lo_child, "TypeId", "") in ("Assembly::AssemblyObject", "App::Part", "Part::Feature"):
+                    collect(lo_child, from_instance=child)
         lo = getattr(obj, "LinkedObject", None)
         if lo and getattr(lo, "Group", None) and getattr(lo, "TypeId", "") in ("Assembly::AssemblyObject", "App::Part", "Part::Feature"):
-            collect(lo)
+            collect(lo, from_instance=obj)
 
-    collect(assembly)
+    collect(assembly, from_instance=None)
     return result
 
 
@@ -104,7 +131,8 @@ def build_assembly_grounded_map(joint_list, links_dict):
 
     def get_grounded_for_assembly(assem):
         """Find grounded link for assembly by its grounded joint."""
-        for j, a in joint_list:
+        for item in joint_list:
+            j, a = item[0], item[1]
             if a is not assem and getattr(assem, "LinkedObject", None) is not a:
                 continue
             n = getattr(j, "Name", "").lower()
@@ -120,7 +148,8 @@ def build_assembly_grounded_map(joint_list, links_dict):
             # otg is assembly - recurse
             return get_grounded_for_assembly(otg)
 
-    for joint_obj, assembly in joint_list:
+    for item in joint_list:
+        joint_obj, assembly = item[0], item[1]
         name = getattr(joint_obj, "Name", "").lower()
         jtype = getattr(joint_obj, "JointType", "").lower()
         if "ground" not in name and "ground" not in jtype:
@@ -149,15 +178,15 @@ def build_assembly_grounded_map(joint_list, links_dict):
 # --- Joint and URDF classes ---
 
 class FreeCADJoint:
-    def __init__(self, joint_obj, parent_link_name, child_link, links_dict, assembly_grounded_map):
+    def __init__(self, joint_obj, parent_link_name, child_link, links_dict, assembly_grounded_map, instance_context=None):
         self.joint = joint_obj
         self.link_name = parent_link_name
         self.child_link = child_link
         self.parent_link = links_dict[parent_link_name]
         ref1 = getattr(joint_obj, "Reference1", None)
         ref2 = getattr(joint_obj, "Reference2", None)
-        c1 = get_link_names_from_reference_expanded(ref1, links_dict, assembly_grounded_map)
-        c2 = get_link_names_from_reference_expanded(ref2, links_dict, assembly_grounded_map)
+        c1 = get_link_names_from_reference_expanded(ref1, links_dict, assembly_grounded_map, instance_context=instance_context)
+        c2 = get_link_names_from_reference_expanded(ref2, links_dict, assembly_grounded_map, instance_context=instance_context)
         if parent_link_name in c1:
             self.from_parent_origin = getattr(joint_obj, "Placement1", None)
             self.from_child_origin = getattr(joint_obj, "Placement2", None)
@@ -263,7 +292,8 @@ def find_root_link(joint_list, links_dict, assembly_grounded_map):
         cands = [x for x in r if x.lower() not in world_names and x in links_dict]
         return cands[0] if cands else None
 
-    for joint_obj, assembly in joint_list:
+    for item in joint_list:
+        joint_obj, assembly = item[0], item[1]
         name = getattr(joint_obj, "Name", "").lower()
         jtype = getattr(joint_obj, "JointType", "").lower()
         if "ground" not in name and "ground" not in jtype:
@@ -315,6 +345,7 @@ def find_root_link(joint_list, links_dict, assembly_grounded_map):
 def build_tree(root_link, links_dict, joint_list, assembly_grounded_map):
     """Attach .joints to each link via DFS from root."""
     visited = set()
+    # Same joint can be used once per instance: key by (joint_id, instance_id)
     used_joints = set()
 
     def visit(link):
@@ -322,13 +353,15 @@ def build_tree(root_link, links_dict, joint_list, assembly_grounded_map):
             return
         visited.add(link.name)
         pending = []
-        for joint_obj, owning_assembly in joint_list:
-            if id(joint_obj) in used_joints:
+        for item in joint_list:
+            joint_obj, owning_assembly, instance_context = _unpack_joint_item(item)
+            used_key = (id(joint_obj), id(instance_context) if instance_context else 0)
+            if used_key in used_joints:
                 continue
             ref1 = getattr(joint_obj, "Reference1", None)
             ref2 = getattr(joint_obj, "Reference2", None)
-            c1 = get_link_names_from_reference_expanded(ref1, links_dict, assembly_grounded_map)
-            c2 = get_link_names_from_reference_expanded(ref2, links_dict, assembly_grounded_map)
+            c1 = get_link_names_from_reference_expanded(ref1, links_dict, assembly_grounded_map, instance_context=instance_context)
+            c2 = get_link_names_from_reference_expanded(ref2, links_dict, assembly_grounded_map, instance_context=instance_context)
             # Ground joint: one ref is None (parent origin) - treat as "all links not in the subassembly"
             if not c2 and c1:
                 c2 = [k for k in links_dict if k not in c1]
@@ -353,9 +386,9 @@ def build_tree(root_link, links_dict, joint_list, assembly_grounded_map):
             other_name = next((r for r in other if r in links_dict and r != link.name), None)
             if not other_name or other_name in visited:
                 continue
-            fc_joint = FreeCADJoint(joint_obj, link.name, links_dict[other_name], links_dict, assembly_grounded_map)
+            fc_joint = FreeCADJoint(joint_obj, link.name, links_dict[other_name], links_dict, assembly_grounded_map, instance_context=instance_context)
             pending.append(fc_joint)
-            used_joints.add(id(joint_obj))
+            used_joints.add(used_key)
         link.joints = pending
         for j in link.joints:
             visit(j.child_link)
@@ -379,11 +412,13 @@ def create_urdf(f, link, export_dir, parent_joint=None, is_root=False, visited_l
     urdf_link = URDFLink(link, export_dir, is_root=is_root, parent_joint=parent_joint)
     urdf_link.write(f)
     for j in link.joints:
-        if id(j.joint) in visited_joints:
+        # Same joint object is shared across assembly instances; key by (parent, child) to allow both legs
+        joint_key = (j.link_name, j.child_link.name)
+        if joint_key in visited_joints:
             continue
         if LINK_LIMIT is not None and link_count[0] >= LINK_LIMIT:
             return
-        visited_joints.add(id(j.joint))
+        visited_joints.add(joint_key)
         urdf_joint = URDFJoint(parent_joint, j)
         urdf_joint.write(f)
         create_urdf(f, j.child_link, export_dir, parent_joint=j, is_root=False, visited_links=visited_links, visited_joints=visited_joints, link_count=link_count)
@@ -422,20 +457,6 @@ def convert_assembly_to_urdf(export_dir):
     print(f"[root] {root_link.name}")
 
     build_tree(root_link, links_dict, joint_list, assembly_grounded_map)
-
-    # Diagnostic: which links are in the tree vs orphaned
-    def collected(link, seen=None):
-        seen = seen or set()
-        if link.name in seen:
-            return seen
-        seen.add(link.name)
-        for j in getattr(link, "joints", []) or []:
-            collected(j.child_link, seen)
-        return seen
-    in_tree = collected(root_link)
-    orphaned = sorted(k for k in links_dict if k not in in_tree)
-    if orphaned:
-        print(f"[orphaned links not reached from root: {len(orphaned)}] {orphaned}")
 
     urdf_path = os.path.join(export_dir, "robot.urdf")
     with open(urdf_path, "w") as f:

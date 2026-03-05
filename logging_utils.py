@@ -3,7 +3,7 @@ import os
 MANUAL_CHECK_FILE = os.path.join(os.path.dirname(__file__), "manual_check.txt")
 MAX_LOG_LINES = 15000
 DEBUG = False  # Set True for verbose subassembly/transform logging
-DEBUG_JOINT_TRANSFORM = True  # Set True to log joint transform details for Power_Block-Shoulder_V001
+DEBUG_JOINT_TRANSFORM = False  # Set True to log joint transform details for debugging
 DEBUG_REF_RESOLUTION = True   # Set True to log ref->link resolution for shoulder/ground joints
 
 def log_message(msg, force=False):
