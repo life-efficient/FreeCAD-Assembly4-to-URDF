@@ -43,6 +43,42 @@ def get_link_name_from_reference_single(ref):
     return candidates[0] if candidates else None
 
 
+def get_link_names_from_reference_expanded(ref, links_dict):
+    """
+    Resolve a joint reference to link names. When ref points to a subassembly (e.g. Leg_Assembly),
+    expand it to the actual links inside that subassembly. Returns list of link names present in links_dict.
+    """
+    if not ref:
+        return []
+    direct = get_link_name_from_reference(ref)
+    found = set(r for r in direct if r in links_dict)
+    if found:
+        return list(found)
+    # Ref might point to subassembly - get object and resolve via resolve_object_to_link_names
+    obj = None
+    if ref and len(ref) >= 2 and ref[1]:
+        first = ref[1][0]
+        obj = first[0] if isinstance(first, (list, tuple)) and first else first
+    if obj is not None and hasattr(obj, "Name") and obj.Name not in links_dict:
+        resolved = resolve_object_to_link_names(obj, links_dict)
+        found.update(resolved)
+    elif not found and direct:
+        try:
+            import FreeCAD
+            doc = getattr(FreeCAD, "ActiveDocument", None)
+            if doc:
+                for name in direct:
+                    if name not in links_dict:
+                        o = doc.getObject(name)
+                        if o:
+                            resolved = resolve_object_to_link_names(o, links_dict)
+                            found.update(resolved)
+                            break
+        except Exception:
+            pass
+    return list(found)
+
+
 def _has_ancestor(child_obj, ancestor_obj):
     """Check if ancestor_obj is in the parent chain of child_obj (Group or GeoFeatureGroup)."""
     if child_obj is None or ancestor_obj is None:
@@ -67,19 +103,13 @@ def resolve_object_to_link_names(obj, links_dict):
     Fallback: when obj is a container (AssemblyLink etc.), find links whose part has obj as ancestor.
     links_dict: {link_name: FreeCADLink}"""
     if obj is None:
-        log_message("[resolve] obj is None")
         return []
     obj_name = getattr(obj, "Name", None)
-    obj_type = type(obj).__name__
-    log_message(f"[resolve] Resolving ObjectToGround: {obj_name} ({obj_type})")
     found = set()
     visited = set()
-    traversed = []  # for logging
     link_names = set(links_dict.keys())
     body_to_name = {id(link.body): name for name, link in links_dict.items() if link.body}
     part_to_name = {id(link.part): name for name, link in links_dict.items() if getattr(link, "part", None)}
-    log_message(f"[resolve] link_names={list(link_names)}, part ids={list(part_to_name.keys())[:3]}..., body ids={list(body_to_name.keys())[:3]}...")
-    # For cross-document: (DocName, ObjName) -> link_name
     docname_name_to_link = {}
     for name, link in links_dict.items():
         for o in (getattr(link, "part", None), getattr(link, "body", None)):
@@ -88,7 +118,6 @@ def resolve_object_to_link_names(obj, links_dict):
                 doc_name = getattr(doc, "Name", None) if doc else None
                 if doc_name is not None and o.Name:
                     docname_name_to_link[(doc_name, o.Name)] = name
-    log_message(f"[resolve] docname_name_to_link keys (doc,name)={list(docname_name_to_link.keys())[:5]}")
 
     def collect(o, depth=0):
         if o is None or id(o) in visited:
@@ -96,7 +125,6 @@ def resolve_object_to_link_names(obj, links_dict):
         visited.add(id(o))
         name = getattr(o, "Name", None)
         type_id = getattr(o, "TypeId", type(o).__name__)
-        traversed.append((depth, name, type_id, id(o)))
         match_reason = None
         if name and name in link_names:
             found.add(name)
@@ -111,25 +139,19 @@ def resolve_object_to_link_names(obj, links_dict):
         if doc_name and name and (doc_name, name) in docname_name_to_link:
             found.add(docname_name_to_link[(doc_name, name)])
             match_reason = "doc_name"
-        if match_reason:
-            log_message(f"[resolve]   MATCH at depth {depth}: {name} ({type_id}) id={id(o)} -> {match_reason}")
         # Assembly4 LCS: get parent part from Support (can be (Object, SubElement) or object with .Object)
         if hasattr(o, "Support") and o.Support:
             for s in (o.Support if isinstance(o.Support, (list, tuple)) else [o.Support]):
                 ref = s.Object if hasattr(s, "Object") else (s[0] if isinstance(s, (list, tuple)) and s else None)
                 if ref:
                     collect(ref, depth + 1)
-        # LinkedObject - for AssemblyLink/App::Link, gets the linked assembly or body
         lo = getattr(o, "LinkedObject", None)
         if lo:
-            log_message(f"[resolve]   traversing LinkedObject of {name} -> {getattr(lo, 'Name', None)}")
             collect(lo, depth + 1)
-        # Group - but NOT for Body or Link->Body (those contain Pad, Sketch, Chamfer - not links)
         lo_type = getattr(lo, "TypeId", None) if lo else None
         skip_group = type_id == "PartDesign::Body" or (type_id == "App::Link" and lo_type == "PartDesign::Body")
         grp = getattr(o, "Group", None)
         if grp and not skip_group:
-            log_message(f"[resolve]   traversing Group of {name} ({len(grp)} children): {[getattr(c, 'Name', None) for c in grp[:8]]}{'...' if len(grp) > 8 else ''}")
             for child in grp:
                 collect(child, depth + 1)
 
@@ -137,15 +159,12 @@ def resolve_object_to_link_names(obj, links_dict):
 
     # Fallback: AssemblyLink/container may not expose Group; find links whose part has obj as ancestor
     if not found and obj:
-        log_message("[resolve] No matches from traversal; trying _has_ancestor fallback")
         for name, link in links_dict.items():
             part = getattr(link, "part", None)
             if part:
                 has_it = _has_ancestor(part, obj)
                 if has_it:
-                    log_message(f"[resolve]   _has_ancestor: {name} (part {getattr(part, 'Name', None)}) has obj as ancestor")
                     found.add(name)
-    log_message(f"[resolve] Result: found={list(found)}, traversed {len(traversed)} objects")
     return list(found)
 
 def export_mesh(body, name, export_dir):
@@ -258,17 +277,9 @@ def clean_placement(placement):
     return f"Placement [Pos={pos_str}, Axis/Angle={rot_str}]"
 
 def get_origin_alignment(from_placement, to_placement):
-    """
-    Compute the rotation-only alignment from 'from_placement' to 'to_placement'.
-    Returns a FreeCAD.Placement representing the rotation-only transform.
-    This is the rotation that, when applied to 'from_placement', aligns it with 'to_placement'.
-    """
-    log_message(f"[DEBUG] get_origin_alignment: \n\tfrom_placement: {clean_placement(from_placement)}\n\tto_placement: {clean_placement(to_placement)}")
-    # Compute the transform that brings 'from_placement' to 'to_placement'
+    """Rotation-only alignment from 'from_placement' to 'to_placement'."""
     difference = to_placement.multiply(from_placement.inverse())
-    rotation_difference = difference.Rotation
-    log_message(f"[DEBUG] get_origin_alignment: {clean(rotation_difference.Angle)} radians about ({clean(rotation_difference.Axis.x)}, {clean(rotation_difference.Axis.y)}, {clean(rotation_difference.Axis.z)})")
-    return App.Placement(App.Vector(0, 0, 0), rotation_difference)
+    return App.Placement(App.Vector(0, 0, 0), difference.Rotation)
 
 
 def get_mesh_offset(parent_joint):
@@ -339,23 +350,14 @@ def get_mesh_offset(parent_joint):
 
 
 def get_joint_transform(prev_joint, curr_joint):
-    """
-    Compute the URDF joint origin transform (parent frame to joint frame).
-    Returns a FreeCAD.Placement.
-    """
+    """Compute the URDF joint origin transform (parent frame to joint frame)."""
     alignment_transform = get_joint_frame_alignment(curr_joint)
     if prev_joint is None:
-        log_message(f"\t[DEBUG][get_joint_transform] - this joint must be attached to the root link")
         transform = curr_joint.from_parent_origin
     else:
         assert hasattr(prev_joint, 'from_child_origin') and prev_joint.from_child_origin is not None and curr_joint.from_parent_origin is not None
-        log_message(f"\t[DEBUG][get_joint_transform] prev_joint.from_child_origin: {clean_placement(prev_joint.from_child_origin)}")
-        log_message(f"\t[DEBUG][get_joint_transform] curr_joint.from_parent_origin: {clean_placement(curr_joint.from_parent_origin)}")
         product = prev_joint.from_child_origin.inverse().multiply(curr_joint.from_parent_origin)
-        joint_to_joint_in_parent_joint_frame = product
-        log_message(f"\t[DEBUG][get_joint_transform] unaligned transform {clean_placement(product)}")
-        # transform = joint_to_joint_in_parent_joint_frame
-        transform = joint_to_joint_in_parent_joint_frame
+        transform = product
         # transform = joint_to_joint_in_parent_joint_frame.multiply(alignment)
         # option 1: 
         # transform = alignment.multiply(prev_joint.from_child_origin.inverse()).multiply(curr_joint.from_parent_origin)
@@ -377,29 +379,19 @@ def get_joint_transform(prev_joint, curr_joint):
         # transform = curr_joint.from_parent_origin.multiply(prev_joint.from_child_origin.inverse().multiply(alignment))
         # ^ messed up
     transform = transform.multiply(alignment_transform)
-    log_message(f"\t[DEBUG][get_joint_transform] transform: {clean_placement(transform)}")
     return transform
 
 
 def get_joint_axis(prev_joint, curr_joint):
-    """
-    Compute the joint axis in the joint's local frame (URDF expects axis after <origin> is applied).
-    Returns a FreeCAD.Vector.
-    Logs the transform and resulting axis.
-    """
-    # Always return Z axis in joint local frame
-    z_axis = App.Vector(0, 0, 1)
-    log_message(f"[DEBUG][get_joint_axis] axis in joint local frame: (0, 0, 1)")
-    return z_axis
+    """Joint axis in joint local frame (Z for Assembly4)."""
+    return App.Vector(0, 0, 1)
 
 def get_global_placement(obj):
-    # return obj.getGlobalPlacement()
     placement = obj.Placement
     parent = obj.getParentGeoFeatureGroup()
     while parent:
         placement = parent.Placement.multiply(placement)
         parent = parent.getParentGeoFeatureGroup()
-    log_message(f"[DEBUG][get_global_placement] {obj.Name} global placement: {placement}")
     return placement
 
 def get_joint_frame_alignment(joint):
