@@ -107,10 +107,11 @@ USE_PACKAGE_PREFIX = False  # Set to True for package://, False for absolute pat
 MANUAL_CHECK = True  # Set to True to print human-readable transform checks
 
 def find_joints_group(assembly):
+    if not assembly or not getattr(assembly, "Group", None):
+        return None
     for obj in assembly.Group:
-        if obj.TypeId == "Assembly::JointGroup":
-            if "Joints" in obj.Name:
-                return obj
+        if obj.TypeId == "Assembly::JointGroup" and "Joints" in getattr(obj, "Name", ""):
+            return obj
     return None
 
 
@@ -118,11 +119,15 @@ def collect_all_joints(assembly):
     """Collect joints from main assembly and any subassemblies that have Joints groups."""
     joint_objs = []
     seen_joints = set()
+    seen_assemblies = set()
 
     def collect(obj):
-        if obj is None:
+        if obj is None or id(obj) in seen_assemblies:
             return
+        seen_assemblies.add(id(obj))
         joints_group = find_joints_group(obj)
+        if not joints_group and getattr(obj, "LinkedObject", None):
+            joints_group = find_joints_group(obj.LinkedObject)
         if joints_group and joints_group.Group:
             for j in joints_group.Group:
                 if id(j) not in seen_joints:
@@ -132,6 +137,11 @@ def collect_all_joints(assembly):
             for child in obj.Group:
                 if getattr(child, "Group", None):
                     collect(child)
+        # AssemblyLink: also process LinkedObject to find joints in the linked assembly
+        if getattr(obj, "LinkedObject", None):
+            lo = obj.LinkedObject
+            if getattr(lo, "Group", None) and getattr(lo, "TypeId", "") in ("Assembly::AssemblyObject", "App::Part", "Part::Feature"):
+                collect(lo)
 
     collect(assembly)
     return joint_objs
@@ -529,6 +539,11 @@ def convert_assembly_to_urdf(export_dir):
             create_urdf(f, root_link, export_dir, parent_joint=None, is_root=True, parent_name="world")
         f.write('</robot>\n')
     print(f"\nExport complete!\nURDF exported to: {urdf_file}")
+    # Print URDF contents for debugging
+    print("\n--- URDF FILE CONTENTS ---")
+    with open(urdf_file, "r") as f:
+        print(f.read())
+    print("--- END URDF ---")
 
 def main():
     # Get export directory (includes all logging)
