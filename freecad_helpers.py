@@ -4,7 +4,7 @@ import os
 
 # --- Logging helpers (moved from ExportAssembly4ToURDF_tree.py) ---
 # Remove log_message and log_newline from this file and import from logging_utils
-from logging_utils import log_message, log_newline
+from logging_utils import log_message, log_newline, log_joint_transform
 
 MESH_FORMAT = "stl"
 PLA_DENSITY = 1240
@@ -43,40 +43,144 @@ def get_link_name_from_reference_single(ref):
     return candidates[0] if candidates else None
 
 
-def get_link_names_from_reference_expanded(ref, links_dict):
+def _get_obj_from_ref(ref):
+    """Extract the document object from an Assembly4 reference tuple."""
+    if not ref or len(ref) < 2 or not ref[1]:
+        return None
+    first = ref[1][0]
+    if isinstance(first, (list, tuple)) and first:
+        return first[0]
+    if hasattr(first, "Name"):
+        return first
+    if isinstance(first, str):
+        # e.g. "Shoulder_V001.Edge97" or "Rack.LCS" - part before dot is link/part name
+        doc = ref[0].Document if ref and hasattr(ref[0], "Document") else None
+        if doc:
+            name = first.split(".")[0].split("#")[0]
+            return doc.getObject(name) if name else None
+    return None
+
+
+def _get_support_part(obj):
+    """Follow Support to get the Part/Body this LCS (or similar) is attached to.
+    Returns the object that owns the geometry, or obj if no Support."""
+    if not obj or not hasattr(obj, "Support") or not obj.Support:
+        return obj
+    sup = obj.Support
+    if isinstance(sup, (list, tuple)) and sup:
+        s = sup[0]
+    else:
+        s = sup
+    ref_obj = s.Object if hasattr(s, "Object") else (s[0] if isinstance(s, (list, tuple)) and s else None)
+    if ref_obj:
+        return ref_obj
+    return obj
+
+
+def get_link_names_from_reference_precise(ref, links_dict):
     """
-    Resolve a joint reference to link names. When ref points to a subassembly (e.g. Leg_Assembly),
-    expand it to the actual links inside that subassembly. Returns list of link names present in links_dict.
+    Resolve a reference to the EXACT link(s) it attaches to.
+    - Direct match: ref points to a link name in links_dict -> return that.
+    - LCS: ref points to LCS with Support -> follow to the Part, match to link.
+    - Container (subassembly): only expand when ref points to container; return links whose
+      part has the ref obj as ancestor (contained-in relationship).
+    Returns [] if no precise match.
     """
     if not ref:
         return []
-    direct = get_link_name_from_reference(ref)
-    found = set(r for r in direct if r in links_dict)
-    if found:
-        return list(found)
-    # Ref might point to subassembly - get object and resolve via resolve_object_to_link_names
-    obj = None
-    if ref and len(ref) >= 2 and ref[1]:
-        first = ref[1][0]
-        obj = first[0] if isinstance(first, (list, tuple)) and first else first
-    if obj is not None and hasattr(obj, "Name") and obj.Name not in links_dict:
-        resolved = resolve_object_to_link_names(obj, links_dict)
-        found.update(resolved)
-    elif not found and direct:
-        try:
-            import FreeCAD
-            doc = getattr(FreeCAD, "ActiveDocument", None)
-            if doc:
-                for name in direct:
-                    if name not in links_dict:
-                        o = doc.getObject(name)
-                        if o:
-                            resolved = resolve_object_to_link_names(o, links_dict)
-                            found.update(resolved)
-                            break
-        except Exception:
-            pass
-    return list(found)
+    obj = _get_obj_from_ref(ref)
+    if obj is None:
+        return []
+
+    # Direct match: obj.Name is a link
+    if hasattr(obj, "Name") and obj.Name in links_dict:
+        return [obj.Name]
+
+    # LCS or similar: follow Support to get the part the ref is attached to
+    part_obj = _get_support_part(obj)
+    if part_obj and part_obj is not obj:
+        if hasattr(part_obj, "Name") and part_obj.Name in links_dict:
+            return [part_obj.Name]
+        # part_obj might be a Body; links_dict keys are Link names. Check link.part and link.body.
+        for name, link in links_dict.items():
+            if getattr(link, "part", None) is part_obj or getattr(link, "body", None) is part_obj:
+                return [name]
+
+    # Ref points to container (e.g. Core_Assembly): resolve to links contained in it
+    resolved = resolve_object_to_link_names(obj, links_dict)
+    return list(resolved) if resolved else []
+
+
+def get_link_names_from_reference_expanded(ref, links_dict, assembly_grounded_map=None):
+    """
+    Resolve a joint reference to link names.
+    - Link/LCS on link: return that link.
+    - Assembly: return grounded link of that assembly (from assembly_grounded_map).
+    - LCS on assembly: same as assembly.
+    assembly_grounded_map: {id(assembly): link_name} - grounded link per assembly.
+    """
+    if not ref:
+        return []
+    obj = _get_obj_from_ref(ref)
+    if obj is None:
+        return []
+
+    # Direct link match
+    if hasattr(obj, "Name") and obj.Name in links_dict:
+        return [obj.Name]
+
+    # LCS: follow Support to get the part it's attached to
+    part_obj = _get_support_part(obj)
+    if part_obj and part_obj is not obj:
+        if hasattr(part_obj, "Name") and part_obj.Name in links_dict:
+            return [part_obj.Name]
+        for name, link in links_dict.items():
+            if getattr(link, "part", None) is part_obj or getattr(link, "body", None) is part_obj:
+                return [name]
+
+    # Assembly or LCS on assembly: use grounded link
+    if assembly_grounded_map:
+        target = part_obj if part_obj is not obj else obj
+        if target and id(target) in assembly_grounded_map:
+            name = assembly_grounded_map[id(target)]
+            if name in links_dict:
+                return [name]
+
+    # Container: resolve to contained links (resolve_object_to_link_names)
+    resolved = resolve_object_to_link_names(obj, links_dict)
+    return list(resolved) if resolved else []
+
+
+def get_top_level_container(obj, assembly):
+    """Return the direct child of assembly.Group that contains obj (the 'subassembly').
+    Used to order traversal: internal links (same container) before external.
+    Tries getParentGeoFeatureGroup first, then falls back to Group membership."""
+    if not obj or not assembly or not getattr(assembly, "Group", None):
+        return None
+    # Method 1: walk parent chain via getParentGeoFeatureGroup
+    for child in assembly.Group:
+        if _has_ancestor(obj, child):
+            return id(child)
+    # Method 2: Assembly4/App::Link may not use getParentGeoFeatureGroup; search Group tree
+    for child in assembly.Group:
+        if _obj_in_group_tree(obj, child):
+            return id(child)
+    return None
+
+
+def _obj_in_group_tree(obj, container):
+    """True if obj is container itself or is in container's Group (recursively)."""
+    if obj is None or container is None:
+        return False
+    if obj is container:
+        return True
+    grp = getattr(container, "Group", None)
+    if not grp:
+        return False
+    for c in grp:
+        if obj is c or _obj_in_group_tree(obj, c):
+            return True
+    return False
 
 
 def _has_ancestor(child_obj, ancestor_obj):
@@ -100,7 +204,6 @@ def resolve_object_to_link_names(obj, links_dict):
     Handles App::Part, App::Link, nested Groups - traverses to find bodies/links.
     Matches by: (1) name in links_dict, (2) object identity with link.body, (3) link.part.
     Also matches by (doc, name) for cross-document links.
-    Fallback: when obj is a container (AssemblyLink etc.), find links whose part has obj as ancestor.
     links_dict: {link_name: FreeCADLink}"""
     if obj is None:
         return []
@@ -156,15 +259,6 @@ def resolve_object_to_link_names(obj, links_dict):
                 collect(child, depth + 1)
 
     collect(obj)
-
-    # Fallback: AssemblyLink/container may not expose Group; find links whose part has obj as ancestor
-    if not found and obj:
-        for name, link in links_dict.items():
-            part = getattr(link, "part", None)
-            if part:
-                has_it = _has_ancestor(part, obj)
-                if has_it:
-                    found.add(name)
     return list(found)
 
 def export_mesh(body, name, export_dir):
@@ -379,6 +473,8 @@ def get_joint_transform(prev_joint, curr_joint):
         # transform = curr_joint.from_parent_origin.multiply(prev_joint.from_child_origin.inverse().multiply(alignment))
         # ^ messed up
     transform = transform.multiply(alignment_transform)
+    jname = f"{getattr(curr_joint.parent_link, 'name', '?')}-{getattr(curr_joint.child_link, 'name', '?')}"
+    log_joint_transform(jname, curr_joint.from_parent_origin, curr_joint.from_child_origin, alignment_transform, transform)
     return transform
 
 
