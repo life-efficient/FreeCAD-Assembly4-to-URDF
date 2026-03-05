@@ -77,6 +77,15 @@ def _get_obj_from_ref(ref):
                         for gc in getattr(c, "Group", []) or []:
                             if getattr(gc, "Name", "") == child_name:
                                 return gc
+                    # child_name may be "Part.SubElement" (e.g. U_Hip_Rotation_V1.Face11) - part is in Group
+                    if sep in child_name:
+                        part_name = child_name.split(sep, 1)[0]
+                        for c in getattr(parent, "Group", []) or []:
+                            if getattr(c, "Name", "") == part_name:
+                                return c
+                            for gc in getattr(c, "Group", []) or []:
+                                if getattr(gc, "Name", "") == part_name:
+                                    return gc
                     # child_name not in Group -> subelement (Edge97, LCS, etc.), use parent
                     return parent
                 return parent

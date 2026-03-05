@@ -322,13 +322,31 @@ def build_tree(root_link, links_dict, joint_list, assembly_grounded_map):
             return
         visited.add(link.name)
         pending = []
-        for joint_obj, _ in joint_list:
+        for joint_obj, owning_assembly in joint_list:
             if id(joint_obj) in used_joints:
                 continue
             ref1 = getattr(joint_obj, "Reference1", None)
             ref2 = getattr(joint_obj, "Reference2", None)
             c1 = get_link_names_from_reference_expanded(ref1, links_dict, assembly_grounded_map)
             c2 = get_link_names_from_reference_expanded(ref2, links_dict, assembly_grounded_map)
+            # Ground joint: one ref is None (parent origin) - treat as "all links not in the subassembly"
+            if not c2 and c1:
+                c2 = [k for k in links_dict if k not in c1]
+                # Use subassembly's grounded link, not all links (connects to attachment point)
+                if owning_assembly and id(owning_assembly) in assembly_grounded_map:
+                    grounded = assembly_grounded_map[id(owning_assembly)]
+                    if grounded in links_dict:
+                        c1 = [grounded]
+            elif not c1 and c2:
+                c1 = [k for k in links_dict if k not in c2]
+                if owning_assembly and id(owning_assembly) in assembly_grounded_map:
+                    grounded = assembly_grounded_map[id(owning_assembly)]
+                    if grounded in links_dict:
+                        c2 = [grounded]
+            # Subassembly ground attaches to parent scope, not global root - skip if we'd connect to root
+            if not ref1 or not ref2:
+                if link.name == root_link.name and link.name in (c1 + c2):
+                    continue  # Don't attach subassembly ground to root
             if link.name not in c1 and link.name not in c2:
                 continue
             other = c2 if link.name in c1 else c1
@@ -346,7 +364,7 @@ def build_tree(root_link, links_dict, joint_list, assembly_grounded_map):
     return root_link
 
 
-LINK_LIMIT = 28  # Stop after this many links; set to None to disable
+LINK_LIMIT = None  # Stop after this many links; set to None to disable
 
 def create_urdf(f, link, export_dir, parent_joint=None, is_root=False, visited_links=None, visited_joints=None, link_count=None):
     visited_links = visited_links or set()
